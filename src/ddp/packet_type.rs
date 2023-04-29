@@ -1,38 +1,4 @@
-
-#[derive(Debug)]
-#[repr(u8)]
-#[allow(dead_code)]
-pub enum DataType {
-    UndefinedType,
-    RGB,
-    HSL,
-    RGBW,
-    Grayscale,
-}
-
-#[derive(Debug)]
-#[repr(u8)]
-#[allow(dead_code)]
-pub enum PixelFormat {
-    UndefinedPixelFormat,
-    Pixel1Bits,
-    Pixel4Bits,
-    Pixel8Bits,
-    Pixel16Bits,
-    Pixel24Bits,
-    Pixel32Bits,
-}
-
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct PixelConfig {
-    pub data_type: DataType,
-    pub data_size: PixelFormat,
-    pub customer_defined: bool,
-}
-
-
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 #[allow(dead_code)]
 pub struct PacketType {
     version: u8, // 0x40 ( 2 bit value, can be a value between 1-4 depending on version mask, )
@@ -51,11 +17,21 @@ const REPLY: u8 = 0x04;
 const QUERY: u8 = 0x02;
 const PUSH: u8 = 0x01;
 
-impl PacketType {}
+impl Default for PacketType {
+    fn default() -> Self {
+        Self {
+            version: 1,
+            timecode: false,
+            storage: false,
+            reply: false,
+            query: false,
+            push: false,
+        }
+    }
+}
 
 impl From<u8> for PacketType {
     fn from(byte: u8) -> Self {
-
         let version = match byte & VERSION_MASK {
             0x00 => 1,
             0x40 => 2,
@@ -92,25 +68,24 @@ impl Into<u8> for PacketType {
         };
         byte |= v << 6;
         // Set the flag bits
-        if self.timecode { byte |= TIMECODE };
-        if self.storage { byte |= STORAGE };
-        if self.reply { byte |= REPLY };
-        if self.query { byte |= QUERY };
-        if self.push { byte |= PUSH };
+        if self.timecode {
+            byte |= TIMECODE
+        };
+        if self.storage {
+            byte |= STORAGE
+        };
+        if self.reply {
+            byte |= REPLY
+        };
+        if self.query {
+            byte |= QUERY
+        };
+        if self.push {
+            byte |= PUSH
+        };
 
         byte
     }
-}
-
-
-
-pub struct Header {
-    pub packet_type: PacketType,
-    pub sequence_number: u8,
-    pub pixel_config: PixelConfig,
-    pub id: u8,
-    pub offset: u32,
-    pub length: u16,
 }
 
 #[cfg(test)]
@@ -134,7 +109,6 @@ mod tests {
             }
         );
     }
-
 
     #[test]
     fn test_packet_type_into_u8() {
