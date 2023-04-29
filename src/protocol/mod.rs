@@ -7,6 +7,8 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 pub mod id;
 pub use id::ID;
 
+pub mod status;
+
 use std::net::UdpSocket;
 use thiserror::Error;
 
