@@ -9,6 +9,12 @@ pub struct PacketType {
     pub push: bool, //0x01
 }
 
+impl PacketType {
+    pub fn push(&mut self, push: bool) {
+        self.push = push;
+    }
+}
+
 const VERSION_MASK: u8 = 0xc0;
 //const RESERVED: u8 = 0x20;
 const TIMECODE: u8 = 0x10;

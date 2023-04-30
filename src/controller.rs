@@ -1,15 +1,16 @@
+use crate::protocol;
 use crate::protocol::status::StatusResponse;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::net::{SocketAddr, UdpSocket};
+use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::thread;
 use thiserror::Error;
 
 #[derive(Debug)]
 pub struct Controller {
-    //socket: UdpSocket,
-    connections: HashMap<SocketAddr, Sender<StatusResponse>>,
+    socket: UdpSocket,
+    connections: HashMap<IpAddr, Sender<StatusResponse>>,
 }
 fn listen(socket: &std::net::UdpSocket, mut buffer: &mut [u8]) -> usize {
     let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer).unwrap();
@@ -18,6 +19,46 @@ fn listen(socket: &std::net::UdpSocket, mut buffer: &mut [u8]) -> usize {
     println!("{:?}", src_addr);
 
     number_of_bytes
+}
+
+pub struct Connection {
+    pub pixel_config: protocol::PixelConfig,
+    pub id: protocol::ID,
+
+    sequence_number: u8,
+    socket: UdpSocket,
+    recv: Receiver<StatusResponse>,
+}
+
+impl Connection {
+    pub fn write(&mut self, data: &[u8], offset: u32) -> Result<usize, DDPError> {
+        let mut h = protocol::Header::default();
+
+        h.packet_type.push(true);
+        h.sequence_number = self.sequence_number;
+        h.pixel_config = self.pixel_config;
+        h.id = self.id;
+        h.offset = offset;
+        h.length = data.len() as u16;
+
+        // Send header
+        let mut sent = self.socket.send(h.into())?;
+        // Send data
+        sent += self.socket.send(data)?;
+
+        // Increment sequence number
+        if self.sequence_number > 15 {
+            self.sequence_number = 1;
+        } else {
+            self.sequence_number += 1;
+        }
+
+        Ok(sent)
+    }
+    fn send(&self, data: &[u8]) -> Result<usize, DDPError> {
+        let sent = self.socket.send(data)?;
+        Ok(sent)
+    }
 }
 
 impl Controller {
@@ -30,11 +71,13 @@ impl Controller {
         let socket = UdpSocket::bind("0.0.0.0:4048")?;
 
         // Define our receieve buffer, "1500 bytes should be enough for anyone".
-        // Github copilot actually suggested that LOL, so sassy.
+        // Github copilot actually suggested that, so sassy LOL.
         let mut buf: [u8; 1500] = [0; 1500];
 
+        let socket_reciever = socket.try_clone()?;
+
         thread::spawn(move || {
-            let s = socket;
+            let s = socket_reciever;
 
             loop {
                 listen(&s, &mut buf);
@@ -44,7 +87,7 @@ impl Controller {
         });
 
         Ok(Controller {
-            // socket,
+            socket,
             connections: HashMap::new(),
         })
     }
@@ -58,18 +101,31 @@ impl Controller {
     //     }
     // }
 
-    pub fn connect<A>(&mut self, addr: A) -> Result<Receiver<StatusResponse>, DDPError>
+    pub fn connect<A>(
+        &mut self,
+        addr: A,
+        pixel_config: protocol::PixelConfig,
+        id: protocol::ID,
+    ) -> Result<Connection, DDPError>
     where
         A: std::net::ToSocketAddrs,
     {
-        let socket: SocketAddr = addr
+        let socket_addr: SocketAddr = addr
             .to_socket_addrs()?
             .next()
             .ok_or(DDPError::NoValidSocketAddr)?;
-        let (s, r) = unbounded();
-        self.connections.insert(socket, s);
+        let (s, recv) = unbounded();
+        self.connections.insert(socket_addr.ip(), s);
 
-        Ok(r)
+        let socket = self.socket.try_clone()?;
+
+        Ok(Connection {
+            pixel_config,
+            id,
+            socket,
+            recv,
+            sequence_number: 1,
+        })
     }
 
     pub fn discover<A>(&mut self, addr: A)

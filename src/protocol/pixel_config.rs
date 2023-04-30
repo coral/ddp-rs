@@ -62,6 +62,46 @@ impl From<u8> for PixelConfig {
     }
 }
 
+impl Into<u8> for PixelConfig {
+    fn into(self) -> u8 {
+        let mut byte = 0u8;
+
+        byte |= match self.data_type {
+            DataType::Undefined => 0,
+            DataType::RGB => 1,
+            DataType::HSL => 2,
+            DataType::RGBW => 3,
+            DataType::Grayscale => 4,
+        } << 3;
+
+        byte |= match self.data_size {
+            PixelFormat::Undefined => 0,
+            PixelFormat::Pixel1Bits => 1,
+            PixelFormat::Pixel4Bits => 2,
+            PixelFormat::Pixel8Bits => 3,
+            PixelFormat::Pixel16Bits => 4,
+            PixelFormat::Pixel24Bits => 5,
+            PixelFormat::Pixel32Bits => 6,
+        };
+
+        if self.customer_defined {
+            byte |= 0x80;
+        }
+
+        byte
+    }
+}
+
+impl Default for PixelConfig {
+    fn default() -> Self {
+        Self {
+            data_type: DataType::RGB,
+            data_size: PixelFormat::Pixel24Bits,
+            customer_defined: Default::default(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
