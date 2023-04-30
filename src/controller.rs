@@ -1,7 +1,7 @@
 use crate::protocol::status::StatusResponse;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
 use std::thread;
 use thiserror::Error;
@@ -12,7 +12,7 @@ pub struct Controller {
     connections: HashMap<SocketAddr, Sender<StatusResponse>>,
 }
 fn listen(socket: &std::net::UdpSocket, mut buffer: &mut [u8]) -> usize {
-    let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer).expect("no data received");
+    let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer).unwrap();
 
     println!("{:?}", number_of_bytes);
     println!("{:?}", src_addr);
@@ -26,17 +26,18 @@ impl Controller {
     /// Listens to the world on UDP port 4048.
     /// If that's not desired, use `Controller::new_with_socket` instead.
     pub fn new() -> Result<Controller, DDPError> {
+        // Listen to world on 4048
         let socket = UdpSocket::bind("0.0.0.0:4048")?;
+
+        // Define our receieve buffer, "1500 bytes should be enough for anyone".
+        // Github copilot actually suggested that LOL, so sassy.
+        let mut buf: [u8; 1500] = [0; 1500];
 
         thread::spawn(move || {
             let s = socket;
-            s.connect("0.0.0.0:4048").unwrap();
-            let mut buf: Vec<u8> = Vec::with_capacity(100);
 
             loop {
-                while listen(&s, &mut buf) != 0 {
-                    println!("boo");
-                }
+                listen(&s, &mut buf);
                 //send(&socket, &client_arg, &msg_bytes);
                 println!("spin2win");
             }
