@@ -36,8 +36,8 @@ impl Default for Header {
     }
 }
 
-impl<'a> Into<&'a [u8]> for Header {
-    fn into(self) -> &'a [u8] {
+impl Into<[u8; 10]> for Header {
+    fn into(self) -> [u8; 10] {
         // Define a byte array with the size of the header
         let mut buffer = [0u8; 10];
 
@@ -56,13 +56,13 @@ impl<'a> Into<&'a [u8]> for Header {
 
         // Write the offset field to the buffer
         let offset_bytes = self.offset.to_be_bytes();
-        buffer[4..7].copy_from_slice(&offset_bytes);
+        buffer[4..8].copy_from_slice(&offset_bytes);
 
         // Write the length field to the buffer
         let length_bytes = self.length.to_be_bytes();
-        buffer[8..9].copy_from_slice(&length_bytes);
+        buffer[8..10].copy_from_slice(&length_bytes);
 
         // Return a slice of the buffer representing the entire header
-        &buffer
+        buffer
     }
 }

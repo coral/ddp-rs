@@ -21,12 +21,15 @@ fn listen(socket: &std::net::UdpSocket, mut buffer: &mut [u8]) -> usize {
     number_of_bytes
 }
 
+const MAX_DATA_LENGTH: usize = 480 * 3;
+
 pub struct Connection {
     pub pixel_config: protocol::PixelConfig,
     pub id: protocol::ID,
 
     sequence_number: u8,
     socket: UdpSocket,
+    addr: SocketAddr,
     recv: Receiver<StatusResponse>,
 }
 
@@ -42,9 +45,10 @@ impl Connection {
         h.length = data.len() as u16;
 
         // Send header
-        let mut sent = self.socket.send(h.into())?;
+        let header: [u8; 10] = h.into();
+        let mut sent = self.socket.send_to(&header, self.addr)?;
         // Send data
-        sent += self.socket.send(data)?;
+        sent += self.socket.send_to(data, self.addr)?;
 
         // Increment sequence number
         if self.sequence_number > 15 {
@@ -53,10 +57,6 @@ impl Connection {
             self.sequence_number += 1;
         }
 
-        Ok(sent)
-    }
-    fn send(&self, data: &[u8]) -> Result<usize, DDPError> {
-        let sent = self.socket.send(data)?;
         Ok(sent)
     }
 }
@@ -120,6 +120,7 @@ impl Controller {
         let socket = self.socket.try_clone()?;
 
         Ok(Connection {
+            addr: socket_addr,
             pixel_config,
             id,
             socket,
