@@ -1,26 +1,18 @@
 use crate::protocol;
 use crate::protocol::status::StatusResponse;
 use crossbeam::channel::{unbounded, Receiver, Sender};
+use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr, UdpSocket};
+use std::sync::Arc;
 use std::thread;
 use thiserror::Error;
 
 #[derive(Debug)]
 pub struct Controller {
     socket: UdpSocket,
-    connections: HashMap<IpAddr, Sender<StatusResponse>>,
+    connections: Arc<DashMap<IpAddr, Sender<StatusResponse>>>,
 }
-fn listen(socket: &std::net::UdpSocket, mut buffer: &mut [u8]) -> usize {
-    let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer).unwrap();
-
-    println!("{:?}", number_of_bytes);
-    println!("{:?}", src_addr);
-
-    number_of_bytes
-}
-
 const MAX_DATA_LENGTH: usize = 480 * 3;
 
 pub struct Connection {
@@ -44,11 +36,9 @@ impl Connection {
         h.offset = offset;
         h.length = data.len() as u16;
 
-        // Send header
-        let header: [u8; 10] = h.into();
-        let mut sent = self.socket.send_to(&header, self.addr)?;
-        // Send data
-        sent += self.socket.send_to(data, self.addr)?;
+        //Send data
+        let p: Vec<u8> = protocol::Packet::from_data(h, data).into();
+        let sent = self.socket.send_to(&p, self.addr)?;
 
         // Increment sequence number
         if self.sequence_number > 15 {
@@ -70,27 +60,32 @@ impl Controller {
         // Listen to world on 4048
         let socket = UdpSocket::bind("0.0.0.0:4048")?;
 
-        // Define our receieve buffer, "1500 bytes should be enough for anyone".
-        // Github copilot actually suggested that, so sassy LOL.
-        let mut buf: [u8; 1500] = [0; 1500];
+        let conn = Arc::new(DashMap::new());
 
         let socket_reciever = socket.try_clone()?;
+        let conn_rec = conn.clone();
 
         thread::spawn(move || {
-            let s = socket_reciever;
+            // Define our receieve buffer, "1500 bytes should be enough for anyone".
+            // Github copilot actually suggested that, so sassy LOL.
+            let mut buf: [u8; 1500] = [0; 1500];
 
             loop {
-                listen(&s, &mut buf);
+                let (number_of_bytes, src_addr) = socket_reciever.recv_from(&mut buf).unwrap();
                 //send(&socket, &client_arg, &msg_bytes);
-                println!("spin2win");
+                //dbg!(&buf[0..number_of_bytes]);
             }
         });
 
         Ok(Controller {
             socket,
-            connections: HashMap::new(),
+            connections: conn,
         })
     }
+
+    // fn handle_data(data: &[u8]) -> Result<protocol::Packet, DDPError> {
+
+    // }
 
     // Basically new but you get to define your own socket if you want to use another port.
     // This is useful for binding localhost or other port or tbh whatever tf you want.

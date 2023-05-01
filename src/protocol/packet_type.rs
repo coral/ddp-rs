@@ -1,12 +1,12 @@
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 #[allow(dead_code)]
 pub struct PacketType {
-    version: u8, // 0x40 ( 2 bit value, can be a value between 1-4 depending on version mask, )
+    pub version: u8, // 0x40 ( 2 bit value, can be a value between 1-4 depending on version mask, )
     pub timecode: bool, // 0x10
     pub storage: bool, // 0x08
     pub reply: bool, // 0x04
     pub query: bool, //0x02
-    pub push: bool, //0x01
+    pub push: bool,  //0x01
 }
 
 impl PacketType {
@@ -39,10 +39,10 @@ impl Default for PacketType {
 impl From<u8> for PacketType {
     fn from(byte: u8) -> Self {
         let version = match byte & VERSION_MASK {
-            0x00 => 1,
-            0x40 => 2,
-            0x80 => 3,
-            0xc0 => 4,
+            0x00 => 0,
+            0x40 => 1,
+            0x80 => 2,
+            0xc0 => 3,
             _ => 0,
         };
         let timecode = byte & TIMECODE == TIMECODE;
@@ -106,7 +106,7 @@ mod tests {
         assert_eq!(
             packet_type,
             PacketType {
-                version: 1,
+                version: 0,
                 timecode: true,
                 storage: false,
                 reply: true,

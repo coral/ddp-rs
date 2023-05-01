@@ -41,7 +41,7 @@ impl From<u8> for PixelConfig {
             _ => DataType::Undefined,
         };
 
-        let data_size = match byte & 0x07 {
+        let data_size = match (byte & 0x07) as usize {
             0 => PixelFormat::Undefined,
             1 => PixelFormat::Pixel1Bits,
             2 => PixelFormat::Pixel4Bits,
@@ -52,7 +52,7 @@ impl From<u8> for PixelConfig {
             _ => PixelFormat::Undefined,
         };
 
-        let customer_defined = (byte & 0x80) != 0;
+        let customer_defined = (byte >> 7) != 0;
 
         PixelConfig {
             data_type,
@@ -108,11 +108,11 @@ mod tests {
 
     #[test]
     fn test_pixel_config_from_u8() {
-        let byte = 0b10100000;
+        let byte = 10;
         let pixel_config = PixelConfig::from(byte);
 
         assert_eq!(pixel_config.data_type, DataType::RGB);
-        assert_eq!(pixel_config.data_size, PixelFormat::Pixel8Bits);
-        assert!(pixel_config.customer_defined);
+        assert_eq!(pixel_config.data_size, PixelFormat::Pixel4Bits);
+        assert!(!pixel_config.customer_defined);
     }
 }
