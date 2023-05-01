@@ -1,22 +1,21 @@
+use crate::error::DDPError;
+use crate::packet::Packet;
 use crate::protocol;
-use crate::protocol::response::Response;
-use core::num;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use dashmap::DashMap;
 use log::warn;
-use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::thread;
-use thiserror::Error;
 
 #[derive(Debug)]
 pub struct Controller {
     socket: UdpSocket,
-    connections: Arc<DashMap<IpAddr, Sender<Response>>>,
+    connections: Arc<DashMap<IpAddr, Sender<Packet>>>,
 }
 const MAX_DATA_LENGTH: usize = 480 * 3;
 
+/// Represents a connection to a DDP display
 pub struct Connection {
     pub pixel_config: protocol::PixelConfig,
     pub id: protocol::ID,
@@ -24,8 +23,8 @@ pub struct Connection {
     sequence_number: u8,
     socket: UdpSocket,
     addr: SocketAddr,
-    recv: Receiver<Response>,
 
+    // Since the buffer is hot path, we can reuse it to avoid allocations per packet
     buffer: [u8; 1500],
 }
 
@@ -34,15 +33,12 @@ impl Connection {
         let mut h = protocol::Header::default();
 
         h.packet_type.push(false);
-        h.sequence_number = self.sequence_number;
         h.pixel_config = self.pixel_config;
         h.id = self.id;
         h.offset = offset;
         h.length = data.len() as u16;
 
         let sent = self.slice_send(&mut h, data)?;
-        //Send data
-        // let p: Vec<u8> = protocol::Packet::from_data(h, data).into();
 
         Ok(sent)
     }
@@ -65,9 +61,13 @@ impl Connection {
                 header.packet_type.push(true);
             }
 
+            header.sequence_number = self.sequence_number;
+
             let chunk_end = std::cmp::min(offset + MAX_DATA_LENGTH, data.len());
             let chunk = &data[offset..chunk_end];
             let len = self.assemble_packet(*header, chunk);
+
+            // Send to socket
             sent += self.socket.send_to(&self.buffer[0..len], self.addr)?;
 
             // Increment sequence number
@@ -113,8 +113,21 @@ impl Controller {
             // Github copilot actually suggested that, so sassy LOL.
             let mut buffer: [u8; 1500] = [0; 1500];
             match Self::recieve_filter(&socket_reciever, &mut buffer, &conn_rec) {
-                Ok(bytes_recieved) => {
-                    let packet = protocol::Packet::from_bytes(&buffer[0..bytes_recieved]);
+                Ok((bytes_recieved, addr)) => {
+                    // Parse packet
+                    let packet = Packet::from_bytes(&buffer[0..bytes_recieved]);
+
+                    // Find connection to send to
+                    match conn_rec.get(&addr.ip()) {
+                        Some(ch) => match ch.send(packet) {
+                            Ok(_) => {}
+                            Err(_) => {
+                                // listener is closed, remove from connection array
+                                conn_rec.remove(&addr.ip());
+                            }
+                        },
+                        None => {}
+                    };
                 }
                 Err(err) => {
                     warn!("Error recieving packet: {:?}", err);
@@ -131,12 +144,12 @@ impl Controller {
     fn recieve_filter(
         socket: &std::net::UdpSocket,
         mut buffer: &mut [u8],
-        conn: &Arc<DashMap<IpAddr, Sender<Response>>>,
-    ) -> Result<usize, DDPError> {
+        conn: &Arc<DashMap<IpAddr, Sender<Packet>>>,
+    ) -> Result<(usize, SocketAddr), DDPError> {
         let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer)?;
 
         match conn.contains_key(&src_addr.ip()) {
-            true => Ok(number_of_bytes),
+            true => Ok((number_of_bytes, src_addr)),
             false => Err(DDPError::UnknownClient {
                 from: src_addr,
                 data: Vec::from(&buffer[0..number_of_bytes]),
@@ -158,7 +171,7 @@ impl Controller {
         addr: A,
         pixel_config: protocol::PixelConfig,
         id: protocol::ID,
-    ) -> Result<Connection, DDPError>
+    ) -> Result<(Connection, Receiver<Packet>), DDPError>
     where
         A: std::net::ToSocketAddrs,
     {
@@ -171,41 +184,18 @@ impl Controller {
 
         let socket = self.socket.try_clone()?;
 
-        Ok(Connection {
-            addr: socket_addr,
-            pixel_config,
-            id,
-            socket,
+        Ok((
+            Connection {
+                addr: socket_addr,
+                pixel_config,
+                id,
+                socket,
+                sequence_number: 1,
+                buffer: [0; 1500],
+            },
             recv,
-            sequence_number: 1,
-            buffer: [0; 1500],
-        })
+        ))
     }
-
-    pub fn discover<A>(&mut self, addr: A)
-    where
-        A: std::net::ToSocketAddrs,
-    {
-    }
-}
-
-#[derive(Serialize, Deserialize)]
-struct Person {
-    name: String,
-    age: u8,
-    phones: Vec<String>,
-}
-
-#[derive(Error, Debug)]
-pub enum DDPError {
-    #[error("socket error")]
-    Disconnect(#[from] std::io::Error),
-    #[error("No valid socket addr found")]
-    NoValidSocketAddr,
-    #[error("invalid sender, did you forget to connect() ( data from {from:?} - {data:?})")]
-    UnknownClient { from: SocketAddr, data: Vec<u8> },
-    #[error("unknown data store error")]
-    Unknown,
 }
 
 #[cfg(test)]

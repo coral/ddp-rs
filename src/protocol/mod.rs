@@ -10,35 +10,6 @@ pub use id::ID;
 pub mod response;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
-pub struct Packet<'a> {
-    pub header: Header,
-    pub data: &'a [u8],
-}
-
-impl<'a> Packet<'a> {
-    pub fn from_data(h: Header, d: &'a [u8]) -> Packet<'a> {
-        Packet { header: h, data: d }
-    }
-
-    pub fn from_bytes(bytes: &'a [u8]) -> Self {
-        let header_bytes = &bytes[0..10];
-        let header = Header::from(header_bytes);
-        let data = &bytes[10..];
-        Packet { header, data }
-    }
-}
-
-impl<'a> Into<Vec<u8>> for Packet<'a> {
-    fn into(self) -> Vec<u8> {
-        let header_bytes: [u8; 10] = self.header.into();
-        let mut bytes = Vec::with_capacity(10 + self.data.len());
-        bytes.extend_from_slice(&header_bytes);
-        bytes.extend_from_slice(self.data);
-        bytes
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Header {
     pub packet_type: PacketType,
     pub sequence_number: u8,
