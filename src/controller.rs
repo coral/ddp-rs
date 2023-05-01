@@ -103,6 +103,28 @@ impl Controller {
         // Listen to world on 4048
         let socket = UdpSocket::bind("0.0.0.0:4048")?;
 
+        Controller::new_with_socket(socket)
+    }
+
+    fn recieve_filter(
+        socket: &std::net::UdpSocket,
+        mut buffer: &mut [u8],
+        conn: &Arc<DashMap<IpAddr, Sender<Packet>>>,
+    ) -> Result<(usize, SocketAddr), DDPError> {
+        let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer)?;
+
+        match conn.contains_key(&src_addr.ip()) {
+            true => Ok((number_of_bytes, src_addr)),
+            false => Err(DDPError::UnknownClient {
+                from: src_addr,
+                data: Vec::from(&buffer[0..number_of_bytes]),
+            }),
+        }
+    }
+
+    // Basically new but you get to define your own socket if you want to use another port.
+    // This is useful for binding localhost or other port or tbh whatever tf you want.
+    pub fn new_with_socket(socket: UdpSocket) -> Result<Controller, DDPError> {
         let conn = Arc::new(DashMap::new());
 
         let socket_reciever = socket.try_clone()?;
@@ -140,31 +162,6 @@ impl Controller {
             connections: conn,
         })
     }
-
-    fn recieve_filter(
-        socket: &std::net::UdpSocket,
-        mut buffer: &mut [u8],
-        conn: &Arc<DashMap<IpAddr, Sender<Packet>>>,
-    ) -> Result<(usize, SocketAddr), DDPError> {
-        let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer)?;
-
-        match conn.contains_key(&src_addr.ip()) {
-            true => Ok((number_of_bytes, src_addr)),
-            false => Err(DDPError::UnknownClient {
-                from: src_addr,
-                data: Vec::from(&buffer[0..number_of_bytes]),
-            }),
-        }
-    }
-
-    // Basically new but you get to define your own socket if you want to use another port.
-    // This is useful for binding localhost or other port or tbh whatever tf you want.
-    // pub fn new_with_socket(socket: UdpSocket) -> Controller {
-    //     Controller {
-    //         socket,
-    //         connections: HashSet::new(),
-    //     }
-    // }
 
     pub fn connect<A>(
         &mut self,
