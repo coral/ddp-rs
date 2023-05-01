@@ -1,4 +1,4 @@
-# Distributed Display Protocol (DDP) in Go
+# Distributed Display Protocol (DDP) in Rust
 
 This package allows you to write pixel data to a LED strip over [DDP](http://www.3waylabs.com/ddp/)
 Currently implements sending but haven't gotten to implementing response parsing, works for most use cases though.
