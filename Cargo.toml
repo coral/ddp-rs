@@ -2,6 +2,11 @@
 name = "ddp-rs"
 version = "0.1.0"
 edition = "2021"
+license = "MIT"
+keywords = ["distributed", "display", "protocol", "ddp", "wled", "pixel"]
+categories = ["network-programming", "multimedia"]
+description = "Distributed Display Protocol (DDP) in Rust"
+repository = "https://github.com/coral/ddp-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
