@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
+pub struct StatusRoot {
+    pub status: Status,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
 pub struct Status {
     pub update: Option<String>,
     pub state: Option<String>,
@@ -14,10 +19,15 @@ pub struct Status {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
+pub struct ConfigRoot {
+    pub config: Config,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
 pub struct Config {
-    pub ip: String,
-    pub nm: String,
-    pub gw: String,
+    pub ip: Option<String>,
+    pub nm: Option<String>,
+    pub gw: Option<String>,
     pub ports: Vec<Port>,
 }
 
@@ -27,6 +37,11 @@ pub struct Port {
     pub ts: u32,
     pub l: u32,
     pub ss: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
+pub struct ControlRoot {
+    pub control: Control,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
@@ -49,8 +64,8 @@ pub struct Color {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
 pub enum Response {
-    Control(Control),
-    Status(Status),
-    Config(Config),
+    Control(ControlRoot),
+    Status(StatusRoot),
+    Config(ConfigRoot),
     Unparsed(String),
 }
