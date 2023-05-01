@@ -8,6 +8,8 @@ use std::net::{IpAddr, SocketAddr, UdpSocket};
 use std::sync::Arc;
 use std::thread;
 
+/// Controller can be though of as the "server"
+/// It listens for incoming connections and dispatchs messages to the correct `Connection`
 #[derive(Debug)]
 pub struct Controller {
     socket: UdpSocket,
@@ -29,13 +31,15 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn write(&mut self, data: &[u8], offset: u32) -> Result<usize, DDPError> {
+    /// Writes pixel data to the display
+    ///
+    /// You send the data and the offset to start writing at
+    pub fn write(&mut self, data: &[u8]) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
 
         h.packet_type.push(false);
         h.pixel_config = self.pixel_config;
         h.id = self.id;
-        h.offset = offset;
         h.length = data.len() as u16;
 
         let sent = self.slice_send(&mut h, data)?;
@@ -122,8 +126,8 @@ impl Controller {
         }
     }
 
-    // Basically new but you get to define your own socket if you want to use another port.
-    // This is useful for binding localhost or other port or tbh whatever tf you want.
+    /// Basically `new()` but you get to define your own socket if you want to use another port.
+    /// This is useful for binding localhost or other port or tbh whatever tf you want.
     pub fn new_with_socket(socket: UdpSocket) -> Result<Controller, DDPError> {
         let conn = Arc::new(DashMap::new());
 
@@ -162,6 +166,22 @@ impl Controller {
             connections: conn,
         })
     }
+
+    /// Connect to a DDP display
+    ///
+    /// Returns a connection which you can write to and a reciever which parses and returns packets.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// let (mut c, reciever) = v.connect(
+    ///     "10.0.1.25:4048",
+    ///     ddp_rs::protocol::PixelConfig::default(),
+    ///     ddp_rs::protocol::ID::default(),
+    /// )?;
+    ///
+    /// let response = reciever.recv().unwrap();
+    /// ```
 
     pub fn connect<A>(
         &mut self,

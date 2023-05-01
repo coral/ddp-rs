@@ -1,7 +1,6 @@
 # Distributed Display Protocol (DDP) in Rust
 
 This package allows you to write pixel data to a LED strip over [DDP](http://www.3waylabs.com/ddp/)
-Currently implements sending but haven't gotten to implementing response parsing, works for most use cases though.
 
 You can use this to stream pixel data to [WLED](https://github.com/Aircoookie/WLED) or any other DDP capable reciever.
 
@@ -24,10 +23,9 @@ fn main() -> Result<()> {
     )?;
 
     // Write 4 pixels with no offset
-    c.write(
-        &vec![255, 255, 255, 128, 128, 12, 128, 128, 12, 128, 255, 12],
-        0,
-    )?;
+    c.write(&vec![
+        255, 255, 255, 128, 128, 12, 128, 128, 12, 128, 255, 12,
+    ])?;
 
     // WLED clears if we close the server so keeping it open to see result
     let ten_seconds = time::Duration::from_secs(10);

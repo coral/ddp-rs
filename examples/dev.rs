@@ -14,10 +14,9 @@ fn main() -> Result<()> {
     )?;
 
     // Write 4 pixels with no offset
-    c.write(
-        &vec![255, 255, 255, 128, 128, 12, 128, 128, 12, 128, 255, 12],
-        0,
-    )?;
+    c.write(&vec![
+        255, 255, 255, 128, 128, 12, 128, 128, 12, 128, 255, 12,
+    ])?;
 
     // WLED clears if we close the server so keeping it open to see result
     let ten_seconds = time::Duration::from_secs(10);
