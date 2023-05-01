@@ -47,3 +47,27 @@ impl Default for ID {
         ID::Default
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_id_parse() {
+        // Custom
+        let id = ID::from(212);
+        assert_eq!(id, ID::Custom(212));
+
+        // Default
+        let id = ID::from(1);
+        assert_eq!(id, ID::Default);
+
+        // Status
+        let id = ID::from(251);
+        assert_eq!(id, ID::Status);
+
+        // Reserved
+        let id = ID::from(0);
+        assert_eq!(id, ID::Reserved);
+    }
+}
