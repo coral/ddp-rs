@@ -12,7 +12,7 @@ pub struct DeviceStatus {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum StatusResponse {
+pub enum Response {
     Status(DeviceStatus),
     Update { update: String, state: String },
 }

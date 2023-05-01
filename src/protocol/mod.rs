@@ -7,7 +7,7 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 pub mod id;
 pub use id::ID;
 
-pub mod status;
+pub mod response;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Packet<'a> {
@@ -18,6 +18,13 @@ pub struct Packet<'a> {
 impl<'a> Packet<'a> {
     pub fn from_data(h: Header, d: &'a [u8]) -> Packet<'a> {
         Packet { header: h, data: d }
+    }
+
+    pub fn from_bytes(bytes: &'a [u8]) -> Self {
+        let header_bytes = &bytes[0..10];
+        let header = Header::from(header_bytes);
+        let data = &bytes[10..];
+        Packet { header, data }
     }
 }
 
