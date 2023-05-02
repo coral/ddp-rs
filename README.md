@@ -39,7 +39,11 @@ or try it by running `cargo run --example dev`
 
 ## Why?
 
-I wish I could tell you. I've gone back and forth on these bespoke LED protocols and DDP seems like the most "sane" one although the "specification" is not great. [TPM2.net](https://gist.github.com/jblang/89e24e2655be6c463c56) was another possible protocol which [i started to implement](https://github.com/coral/tpm2net) but stopped after I realized how bad it is. Artnet and E1.31 is great but then you have framerate problem (approx 40-44 FPS) to maintain backwards compatbility with DMX. DDP sits in the middle here as "sane" but not perfect, hence why I implemented it for whatever it is I'm doing. For any future "i'm going to invent my own LED protocol" people out there, take note from the people in broadcast video instead of your jank ham radio serial protocol.
+I wish I could tell you. I've gone back and forth on these bespoke LED protocols and DDP seems like the most "sane" one although the "specification" leaves some to be desired. [TPM2.net](https://gist.github.com/jblang/89e24e2655be6c463c56) was another possible protocol which [i started to implement](https://github.com/coral/tpm2net) but stopped after I realized how bad it is. Artnet and E1.31 is great but then you have framerate problem (approx 40-44 FPS) to maintain backwards compatbility with DMX.
+
+DDP sits in the middle here as "sane" but not perfect, hence why I implemented it for whatever it is I'm doing. It doesn't mandate a framerate, it's spec agnostic to if you send it over UDP or TCP (although I suspect most vendors only accept UDP) and it's open ended in that it relies on JSON for messaging. On top of that the author shoved so much data into the 10 byte header it's almost impressive. Only drawback is that clients needs to implement JSON parsing if they want to be smart but that's tablestakes at this point for anything connected.
+
+For any future "i'm going to invent my own LED protocol" people out there, take note from the people in broadcast video instead of your jank ham radio serial protocol. I like the "freeform pixel struture" but there would probably be value to a more structured "session" where you standardize on how to communicate pixel size etc.
 
 ## Implemented
 
