@@ -171,17 +171,6 @@ impl Controller {
     ///
     /// Returns a connection which you can write to and a reciever which parses and returns packets.
     ///
-    /// # Example
-    ///
-    /// ```
-    /// let (mut c, reciever) = v.connect(
-    ///     "10.0.1.25:4048",
-    ///     ddp_rs::protocol::PixelConfig::default(),
-    ///     ddp_rs::protocol::ID::default(),
-    /// )?;
-    ///
-    /// let response = reciever.recv().unwrap();
-    /// ```
 
     pub fn connect<A>(
         &mut self,

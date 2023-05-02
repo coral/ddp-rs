@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
 pub struct StatusRoot {
@@ -62,10 +63,11 @@ pub struct Color {
     pub b: u32,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Hash, Clone)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub enum Response {
     Control(ControlRoot),
     Status(StatusRoot),
     Config(ConfigRoot),
+    Parsed(Value),
     Unparsed(String),
 }

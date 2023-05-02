@@ -1,6 +1,6 @@
 use crate::protocol::{response::Response, Header};
 
-#[derive(Debug, PartialEq, Hash, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 /// Packet is our internal representation of a recieved packet
 /// Used to parse messages sent back by displays
 /// This struct does allocate!
@@ -30,6 +30,7 @@ impl Packet {
         let mut parsed: Option<Response> = None;
 
         if header.packet_type.reply {
+            // Try to parse the data into typed structs in the spec
             parsed = match match header.id {
                 crate::protocol::ID::Control => match serde_json::from_slice(data) {
                     Ok(v) => Some(Response::Control(v)),
@@ -45,13 +46,22 @@ impl Packet {
                 },
                 _ => None,
             } {
+                // Worked, return the typed struct
                 Some(v) => Some(v),
+
+                // OK, no bueno, lets try just untyped JSON
                 None => match header.id {
                     crate::protocol::ID::Control
                     | crate::protocol::ID::Config
-                    | crate::protocol::ID::Status => match std::str::from_utf8(&data) {
-                        Ok(v) => Some(Response::Unparsed(v.to_string())),
-                        Err(_) => None,
+                    | crate::protocol::ID::Status => match serde_json::from_slice(data) {
+                        // JSON Value it is
+                        Ok(v) => Some(Response::Parsed(v)),
+                        // Ok we're really screwed, lets just return the raw data as a string
+                        Err(_) => match std::str::from_utf8(&data) {
+                            Ok(v) => Some(Response::Unparsed(v.to_string())),
+                            // I guess it's... just bytes?
+                            Err(_) => None,
+                        },
                     },
                     _ => None,
                 },
@@ -114,6 +124,27 @@ mod tests {
                         assert_eq!(c.config.gw.unwrap(), "a.b.c.d");
                         assert_eq!(c.config.nm.unwrap(), "a.b.c.d");
                         assert_eq!(c.config.ports.len(), 2);
+                    }
+                    _ => panic!("not the right packet parsed"),
+                },
+                None => panic!("Packet parsing failed"),
+            }
+        }
+    }
+
+    #[test]
+    fn test_untyped() {
+        {
+            let data = vec![
+                0x44, 0x00, 0x0D, 0xFA, 0x00, 0x00, 0x00, 0x00, 0x00, 0x0F, 0x7B, 0x22, 0x68, 0x65,
+                0x6C, 0x6C, 0x6F, 0x22, 0x3A, 0x20, 0x22, 0x6F, 0x6B, 0x22, 0x7D,
+            ];
+            let packet = Packet::from_bytes(&data);
+
+            match packet.parsed {
+                Some(p) => match p {
+                    Response::Parsed(p) => {
+                        assert_eq!(p["hello"], "ok");
                     }
                     _ => panic!("not the right packet parsed"),
                 },
