@@ -1,4 +1,5 @@
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+use serde::{Deserialize, Serialize};
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ID {
     Reserved,
     Default,

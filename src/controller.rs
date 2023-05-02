@@ -47,6 +47,11 @@ impl Connection {
         Ok(sent)
     }
 
+    /// Allows you to send JSON messages to display
+    /// This is useful for things like setting the brightness
+    /// or changing the display mode
+    ///
+    /// You provide a Message (either typed or untyped) and it will be sent to the display
     pub fn write_message(
         &mut self,
         msg: crate::protocol::message::Message,
@@ -104,7 +109,8 @@ impl Connection {
     // doing this to avoid allocations per frame
     // micro optimization, but it's a hot path
     // esp running this embedded
-    pub fn assemble_packet(&mut self, header: protocol::Header, data: &[u8]) -> usize {
+    #[inline(always)]
+    fn assemble_packet(&mut self, header: protocol::Header, data: &[u8]) -> usize {
         let header_bytes: [u8; 10] = header.into();
         self.buffer[0..10].copy_from_slice(&header_bytes);
         self.buffer[10..(10 + data.len())].copy_from_slice(data);

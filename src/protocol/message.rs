@@ -1,3 +1,4 @@
+use crate::protocol::ID;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -68,8 +69,8 @@ pub enum Message {
     Control(ControlRoot),
     Status(StatusRoot),
     Config(ConfigRoot),
-    Parsed(Value),
-    Unparsed(String),
+    Parsed((ID, Value)),
+    Unparsed((ID, String)),
 }
 
 impl TryInto<Vec<u8>> for Message {
@@ -80,20 +81,35 @@ impl TryInto<Vec<u8>> for Message {
             Message::Control(c) => serde_json::to_vec(&c),
             Message::Status(s) => serde_json::to_vec(&s),
             Message::Config(c) => serde_json::to_vec(&c),
-            Message::Parsed(v) => serde_json::to_vec(&v),
-            Message::Unparsed(s) => Ok(s.as_bytes().to_vec()),
+            Message::Parsed((_, v)) => serde_json::to_vec(&v),
+            Message::Unparsed((_, s)) => Ok(s.as_bytes().to_vec()),
         }
     }
 }
 
-impl Into<crate::protocol::ID> for Message {
-    fn into(self) -> crate::protocol::ID {
+impl Into<ID> for Message {
+    fn into(self) -> ID {
         match self {
             Message::Control(_) => crate::protocol::ID::Control,
             Message::Status(_) => crate::protocol::ID::Status,
             Message::Config(_) => crate::protocol::ID::Config,
-            Message::Parsed(_) => crate::protocol::ID::Control,
-            Message::Unparsed(_) => crate::protocol::ID::Control,
+            Message::Parsed((i, _)) => i,
+            Message::Unparsed((i, _)) => i,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_id_into() {
+        let msg = Message::Parsed((ID::Config, Value::Null));
+        let id: ID = msg.clone().into();
+        assert_eq!(id, ID::Config);
+
+        let vm: Vec<u8> = msg.try_into().unwrap();
+        assert_eq!(vm, b"null");
     }
 }

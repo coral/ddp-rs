@@ -55,10 +55,10 @@ impl Packet {
                     | crate::protocol::ID::Config
                     | crate::protocol::ID::Status => match serde_json::from_slice(data) {
                         // JSON Value it is
-                        Ok(v) => Some(Message::Parsed(v)),
+                        Ok(v) => Some(Message::Parsed((header.id, v))),
                         // Ok we're really screwed, lets just return the raw data as a string
                         Err(_) => match std::str::from_utf8(&data) {
-                            Ok(v) => Some(Message::Unparsed(v.to_string())),
+                            Ok(v) => Some(Message::Unparsed((header.id, v.to_string()))),
                             // I guess it's... just bytes?
                             Err(_) => None,
                         },
@@ -143,7 +143,7 @@ mod tests {
 
             match packet.parsed {
                 Some(p) => match p {
-                    Message::Parsed(p) => {
+                    Message::Parsed((_, p)) => {
                         assert_eq!(p["hello"], "ok");
                     }
                     _ => panic!("not the right packet parsed"),
@@ -164,7 +164,7 @@ mod tests {
 
             match packet.parsed {
                 Some(p) => match p {
-                    Message::Unparsed(p) => {
+                    Message::Unparsed((_, p)) => {
                         assert_eq!(p, "SLICKDENIS4000");
                     }
                     _ => panic!("not the right packet parsed"),
