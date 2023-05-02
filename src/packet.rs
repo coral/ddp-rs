@@ -1,4 +1,4 @@
-use crate::protocol::{response::Response, Header};
+use crate::protocol::{message::Message, Header};
 
 #[derive(Debug, PartialEq, Clone)]
 /// Packet is our internal representation of a recieved packet
@@ -10,7 +10,7 @@ pub struct Packet {
     /// Raw data, if you're getting pixels this is the one you want
     pub data: Vec<u8>,
     /// For anything that's messaging, we try to parse it or cast it to string here
-    pub parsed: Option<Response>,
+    pub parsed: Option<Message>,
 }
 
 impl Packet {
@@ -27,21 +27,21 @@ impl Packet {
         let header = Header::from(header_bytes);
         let data = &bytes[10..];
 
-        let mut parsed: Option<Response> = None;
+        let mut parsed: Option<Message> = None;
 
         if header.packet_type.reply {
             // Try to parse the data into typed structs in the spec
             parsed = match match header.id {
                 crate::protocol::ID::Control => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Response::Control(v)),
+                    Ok(v) => Some(Message::Control(v)),
                     Err(_) => None,
                 },
                 crate::protocol::ID::Config => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Response::Config(v)),
+                    Ok(v) => Some(Message::Config(v)),
                     Err(_) => None,
                 },
                 crate::protocol::ID::Status => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Response::Status(v)),
+                    Ok(v) => Some(Message::Status(v)),
                     Err(_) => None,
                 },
                 _ => None,
@@ -55,10 +55,10 @@ impl Packet {
                     | crate::protocol::ID::Config
                     | crate::protocol::ID::Status => match serde_json::from_slice(data) {
                         // JSON Value it is
-                        Ok(v) => Some(Response::Parsed(v)),
+                        Ok(v) => Some(Message::Parsed(v)),
                         // Ok we're really screwed, lets just return the raw data as a string
                         Err(_) => match std::str::from_utf8(&data) {
-                            Ok(v) => Some(Response::Unparsed(v.to_string())),
+                            Ok(v) => Some(Message::Unparsed(v.to_string())),
                             // I guess it's... just bytes?
                             Err(_) => None,
                         },
@@ -120,7 +120,7 @@ mod tests {
 
             match packet.parsed {
                 Some(p) => match p {
-                    Response::Config(c) => {
+                    Message::Config(c) => {
                         assert_eq!(c.config.gw.unwrap(), "a.b.c.d");
                         assert_eq!(c.config.nm.unwrap(), "a.b.c.d");
                         assert_eq!(c.config.ports.len(), 2);
@@ -143,7 +143,7 @@ mod tests {
 
             match packet.parsed {
                 Some(p) => match p {
-                    Response::Parsed(p) => {
+                    Message::Parsed(p) => {
                         assert_eq!(p["hello"], "ok");
                     }
                     _ => panic!("not the right packet parsed"),
@@ -164,7 +164,7 @@ mod tests {
 
             match packet.parsed {
                 Some(p) => match p {
-                    Response::Unparsed(p) => {
+                    Message::Unparsed(p) => {
                         assert_eq!(p, "SLICKDENIS4000");
                     }
                     _ => panic!("not the right packet parsed"),

@@ -47,6 +47,21 @@ impl Connection {
         Ok(sent)
     }
 
+    pub fn write_message(
+        &mut self,
+        msg: crate::protocol::message::Message,
+    ) -> Result<usize, DDPError> {
+        let mut h = protocol::Header::default();
+        h.packet_type.push(false);
+        h.id = msg.clone().into();
+        let msg_data: Vec<u8> = msg.try_into()?;
+        h.length = msg_data.len() as u16;
+
+        let sent = self.slice_send(&mut h, &msg_data)?;
+
+        Ok(sent)
+    }
+
     fn slice_send(
         &mut self,
         header: &mut protocol::Header,

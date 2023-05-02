@@ -6,6 +6,8 @@ pub enum DDPError {
     Disconnect(#[from] std::io::Error),
     #[error("No valid socket addr found")]
     NoValidSocketAddr,
+    #[error("parse error")]
+    ParseError(#[from] serde_json::Error),
     #[error("invalid sender, did you forget to connect() ( data from {from:?} - {data:?})")]
     UnknownClient {
         from: std::net::SocketAddr,

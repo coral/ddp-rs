@@ -64,10 +64,36 @@ pub struct Color {
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-pub enum Response {
+pub enum Message {
     Control(ControlRoot),
     Status(StatusRoot),
     Config(ConfigRoot),
     Parsed(Value),
     Unparsed(String),
+}
+
+impl TryInto<Vec<u8>> for Message {
+    type Error = serde_json::Error;
+
+    fn try_into(self) -> Result<Vec<u8>, Self::Error> {
+        match self {
+            Message::Control(c) => serde_json::to_vec(&c),
+            Message::Status(s) => serde_json::to_vec(&s),
+            Message::Config(c) => serde_json::to_vec(&c),
+            Message::Parsed(v) => serde_json::to_vec(&v),
+            Message::Unparsed(s) => Ok(s.as_bytes().to_vec()),
+        }
+    }
+}
+
+impl Into<crate::protocol::ID> for Message {
+    fn into(self) -> crate::protocol::ID {
+        match self {
+            Message::Control(_) => crate::protocol::ID::Control,
+            Message::Status(_) => crate::protocol::ID::Status,
+            Message::Config(_) => crate::protocol::ID::Config,
+            Message::Parsed(_) => crate::protocol::ID::Control,
+            Message::Unparsed(_) => crate::protocol::ID::Control,
+        }
+    }
 }

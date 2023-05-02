@@ -7,7 +7,7 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 pub mod id;
 pub use id::ID;
 
-pub mod response;
+pub mod message;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Header {

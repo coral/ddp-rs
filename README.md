@@ -46,11 +46,11 @@ I wish I could tell you. I've gone back and forth on these bespoke LED protocols
 - [x] Multiple connections
 - [x] Data slicing for more than 1500 bytes
 - [x] JSON parsing for recieving
+- [x] Sending JSON messages
 - [x] Tests for most of spec
 - [ ] Timecode
 - [ ] Broadcast
 - [ ] TCP
-- [ ] Sending JSON
 
 ## Contributing
 
