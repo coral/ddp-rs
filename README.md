@@ -1,6 +1,6 @@
 # Distributed Display Protocol (DDP) in Rust
 
-This package allows you to write pixel data to a LED strip over [DDP](http://www.3waylabs.com/ddp/)
+This package allows you to write pixel data to a LED strip over [Distributed Display Protocol (DDP)](http://www.3waylabs.com/ddp/) by 3waylabs.
 
 You can use this to stream pixel data to [WLED](https://github.com/Aircoookie/WLED) or any other DDP capable reciever.
 
