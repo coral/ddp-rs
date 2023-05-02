@@ -108,11 +108,34 @@ mod tests {
 
     #[test]
     fn test_pixel_config_from_u8() {
-        let byte = 10;
-        let pixel_config = PixelConfig::from(byte);
+        // WLED oddities
+        {
+            let byte = 0x0A;
+            let pixel_config = PixelConfig::from(byte);
 
-        assert_eq!(pixel_config.data_type, DataType::RGB);
-        assert_eq!(pixel_config.data_size, PixelFormat::Pixel4Bits);
-        assert!(!pixel_config.customer_defined);
+            assert_eq!(pixel_config.data_type, DataType::RGB);
+            assert_eq!(pixel_config.data_size, PixelFormat::Pixel4Bits);
+            assert!(!pixel_config.customer_defined);
+        }
+
+        // RGB 24
+        {
+            let byte = 0x0D;
+            let pixel_config = PixelConfig::from(byte);
+
+            assert_eq!(pixel_config.data_type, DataType::RGB);
+            assert_eq!(pixel_config.data_size, PixelFormat::Pixel24Bits);
+            assert!(!pixel_config.customer_defined);
+        }
+
+        // RGBW 32
+        {
+            let byte = 0x1E;
+            let pixel_config = PixelConfig::from(byte);
+
+            assert_eq!(pixel_config.data_type, DataType::RGBW);
+            assert_eq!(pixel_config.data_size, PixelFormat::Pixel32Bits);
+            assert!(!pixel_config.customer_defined);
+        }
     }
 }
