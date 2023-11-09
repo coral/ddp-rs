@@ -1,4 +1,4 @@
-# Distributed Display Protocol (DDP) in Rust
+# Higher level version of this (https://github.com/coral/ddp-rs) project by the wonderful Coral
 
 This package allows you to write pixel data to a LED strip over [Distributed Display Protocol (DDP)](http://www.3waylabs.com/ddp/) by 3waylabs.
 
