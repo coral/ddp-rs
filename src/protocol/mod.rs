@@ -6,8 +6,10 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 
 pub mod id;
 pub use id::ID;
+use crate::protocol::timecode::TimeCode;
 
 pub mod message;
+pub mod timecode;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Header {
@@ -17,8 +19,7 @@ pub struct Header {
     pub id: ID,
     pub offset: u32,
     pub length: u16,
-    // TODO - Implement timecode
-    //pub timecode: u32,
+    pub timecode: TimeCode,
 }
 
 impl Default for Header {
@@ -30,7 +31,7 @@ impl Default for Header {
             id: Default::default(),
             offset: Default::default(),
             length: Default::default(),
-            //timecode: 0,
+            timecode: Default::default(),
         }
     }
 }
@@ -68,6 +69,49 @@ impl Into<[u8; 10]> for Header {
 
 impl<'a> From<&'a [u8]> for Header {
     fn from(bytes: &'a [u8]) -> Self {
+        match bytes {
+            [
+                raw_packet_type,
+                raw_sequence_number,
+                raw_pixel_config,
+                raw_id,
+                e,
+                f,
+                g,
+                h,
+                i,
+                j
+            ]
+            => {
+                // Extract the packet type field from the buffer
+                let packet_type = PacketType::from(*raw_packet_type);
+
+                // Extract the sequence number field from the buffer
+                let sequence_number = *raw_sequence_number;
+
+                // Extract the pixel config field from the buffer
+                let pixel_config = PixelConfig::from(*raw_pixel_config);
+
+                // Extract the id field from the buffer
+                let id = ID::from(*raw_id);
+
+                // Extract the offset field from the buffer
+                let offset = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
+
+                // Extract the length field from the buffer
+                let length = u16::from_be_bytes([bytes[8], bytes[9]]);
+
+                Header {
+                    packet_type,
+                    sequence_number,
+                    pixel_config,
+                    id,
+                    offset,
+                    length,
+                    timecode: TimeCode(None)
+                }
+            }
+        }
         // Extract the packet type field from the buffer
         let packet_type = PacketType::from(bytes[0]);
 
@@ -93,6 +137,7 @@ impl<'a> From<&'a [u8]> for Header {
             id,
             offset,
             length,
+            timecode: TimeCode(None)
         }
     }
 }
