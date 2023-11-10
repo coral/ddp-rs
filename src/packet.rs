@@ -23,9 +23,14 @@ impl Packet {
     }
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        let header_bytes = &bytes[0..10];
-        let header = Header::from(header_bytes);
-        let data = &bytes[10..];
+        let header_bytes = &bytes[0..14];
+        let header = Header::try_from(header_bytes).unwrap();
+        let mut start_index: usize = 10;
+        if header.packet_type.timecode{
+            start_index = 14;
+        }
+        let data = &bytes[start_index..];
+
 
         let mut parsed: Option<Message> = None;
 
@@ -70,7 +75,7 @@ impl Packet {
         Packet {
             header,
             data: data.to_vec(),
-            parsed: parsed,
+            parsed,
         }
     }
 }

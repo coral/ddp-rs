@@ -1,3 +1,5 @@
+// http://www.3waylabs.com/ddp/
+
 pub mod packet_type;
 pub use packet_type::*;
 
@@ -19,8 +21,10 @@ pub struct Header {
     pub id: ID,
     pub offset: u32,
     pub length: u16,
-    pub timecode: TimeCode,
+    pub time_code: TimeCode,
 }
+
+
 
 impl Default for Header {
     fn default() -> Self {
@@ -31,7 +35,7 @@ impl Default for Header {
             id: Default::default(),
             offset: Default::default(),
             length: Default::default(),
-            timecode: Default::default(),
+            time_code: Default::default(),
         }
     }
 }
@@ -42,7 +46,9 @@ impl Into<[u8; 10]> for Header {
         let mut buffer = [0u8; 10];
 
         // Write the packet type field to the buffer
-        let packet_type_byte = self.packet_type.into();
+
+
+        let packet_type_byte: u8 = self.packet_type.into();
         buffer[0] = packet_type_byte;
 
         // Write the sequence number field to the buffer
@@ -62,6 +68,43 @@ impl Into<[u8; 10]> for Header {
         let length_bytes = self.length.to_be_bytes();
         buffer[8..10].copy_from_slice(&length_bytes);
 
+
+
+        // Return a slice of the buffer representing the entire header
+        buffer
+    }
+}
+impl Into<[u8; 14]> for Header {
+    fn into(self) -> [u8; 14] {
+        // Define a byte array with the size of the header
+        let mut buffer = [0u8; 14];
+
+        // Write the packet type field to the buffer
+
+
+        let packet_type_byte: u8 = self.packet_type.into();
+        buffer[0] = packet_type_byte;
+
+        // Write the sequence number field to the buffer
+        buffer[1] = self.sequence_number;
+
+        // Write the pixel config field to the buffer
+        buffer[2] = self.pixel_config.into();
+
+        // Write the id field to the buffer
+        buffer[3] = self.id.into();
+
+        // Write the offset field to the buffer
+        let offset_bytes: [u8; 4] = self.offset.to_be_bytes();
+        buffer[4..8].copy_from_slice(&offset_bytes);
+
+        // Write the length field to the buffer
+        let length_bytes: [u8; 2] = self.length.to_be_bytes();
+        buffer[8..10].copy_from_slice(&length_bytes);
+
+        let time_code: [u8; 4] = self.time_code.to_bytes();
+        buffer[10..14].copy_from_slice(&time_code);
+
         // Return a slice of the buffer representing the entire header
         buffer
     }
@@ -69,49 +112,7 @@ impl Into<[u8; 10]> for Header {
 
 impl<'a> From<&'a [u8]> for Header {
     fn from(bytes: &'a [u8]) -> Self {
-        match bytes {
-            [
-                raw_packet_type,
-                raw_sequence_number,
-                raw_pixel_config,
-                raw_id,
-                e,
-                f,
-                g,
-                h,
-                i,
-                j
-            ]
-            => {
-                // Extract the packet type field from the buffer
-                let packet_type = PacketType::from(*raw_packet_type);
 
-                // Extract the sequence number field from the buffer
-                let sequence_number = *raw_sequence_number;
-
-                // Extract the pixel config field from the buffer
-                let pixel_config = PixelConfig::from(*raw_pixel_config);
-
-                // Extract the id field from the buffer
-                let id = ID::from(*raw_id);
-
-                // Extract the offset field from the buffer
-                let offset = u32::from_be_bytes([bytes[4], bytes[5], bytes[6], bytes[7]]);
-
-                // Extract the length field from the buffer
-                let length = u16::from_be_bytes([bytes[8], bytes[9]]);
-
-                Header {
-                    packet_type,
-                    sequence_number,
-                    pixel_config,
-                    id,
-                    offset,
-                    length,
-                    timecode: TimeCode(None)
-                }
-            }
-        }
         // Extract the packet type field from the buffer
         let packet_type = PacketType::from(bytes[0]);
 
@@ -130,14 +131,29 @@ impl<'a> From<&'a [u8]> for Header {
         // Extract the length field from the buffer
         let length = u16::from_be_bytes([bytes[8], bytes[9]]);
 
-        Header {
-            packet_type,
-            sequence_number,
-            pixel_config,
-            id,
-            offset,
-            length,
-            timecode: TimeCode(None)
+        return if packet_type.timecode && bytes.len() >= 14 {
+
+            let time_code = TimeCode::from_4_bytes([bytes[10], bytes[11], bytes[12], bytes[13]]);
+
+            Header {
+                packet_type,
+                sequence_number,
+                pixel_config,
+                id,
+                offset,
+                length,
+                time_code
+            }
+        } else {
+            Header {
+                packet_type,
+                sequence_number,
+                pixel_config,
+                id,
+                offset,
+                length,
+                time_code: TimeCode(None)
+            }
         }
     }
 }

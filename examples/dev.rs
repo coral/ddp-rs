@@ -15,7 +15,12 @@ fn main() -> Result<()> {
 
     // Write 4 pixels with no offset
     c.write(&vec![
-        255, 255, 255, 128, 128, 12, 128, 128, 12, 128, 255, 12,
+        255/*red value*/, 0/*green value*/, 0/*blue value*/,
+        255/*red value*/, 0/*green value*/, 0/*blue value*/,
+        0/*red value*/, 255/*green value*/, 0/*blue value*/,
+        0/*red value*/, 255/*green value*/, 0/*blue value*/,
+        0/*red value*/, 0/*green value*/, 255/*blue value*/,
+        0/*red value*/, 0/*green value*/, 255/*blue value*/,
     ])?;
 
     // WLED clears if we close the server so keeping it open to see result

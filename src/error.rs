@@ -13,4 +13,6 @@ pub enum DDPError {
         from: std::net::SocketAddr,
         data: Vec<u8>,
     },
+    #[error("Invalid packet")]
+    InvalidPacket,
 }
