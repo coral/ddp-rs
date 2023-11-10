@@ -43,7 +43,7 @@ impl Default for Header {
 impl Into<[u8; 10]> for Header {
     fn into(self) -> [u8; 10] {
         // Define a byte array with the size of the header
-        let mut buffer = [0u8; 10];
+        let mut buffer: [u8; 10] = [0u8; 10];
 
         // Write the packet type field to the buffer
 

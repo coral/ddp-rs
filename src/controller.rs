@@ -42,9 +42,7 @@ impl Connection {
         h.id = self.id;
         h.length = data.len() as u16;
 
-        let sent = self.slice_send(&mut h, data)?;
-
-        Ok(sent)
+        self.slice_send(&mut h, data)
     }
 
     /// Allows you to send JSON messages to display
@@ -52,19 +50,15 @@ impl Connection {
     /// or changing the display mode
     ///
     /// You provide a Message (either typed or untyped) and it will be sent to the display
-    pub fn write_message(
-        &mut self,
-        msg: crate::protocol::message::Message,
-    ) -> Result<usize, DDPError> {
+    pub fn write_message(&mut self, msg: protocol::message::Message) -> Result<usize, DDPError>
+    {
         let mut h = protocol::Header::default();
         h.packet_type.push(false);
-        h.id = msg.clone().into();
+        h.id = msg.get_id();
         let msg_data: Vec<u8> = msg.try_into()?;
         h.length = msg_data.len() as u16;
 
-        let sent = self.slice_send(&mut h, &msg_data)?;
-
-        Ok(sent)
+        self.slice_send(&mut h, &msg_data)
     }
 
     fn slice_send(
@@ -111,11 +105,19 @@ impl Connection {
     // esp running this embedded
     #[inline(always)]
     fn assemble_packet(&mut self, header: protocol::Header, data: &[u8]) -> usize {
-        let header_bytes: [u8; 10] = header.into();
-        self.buffer[0..10].copy_from_slice(&header_bytes);
-        self.buffer[10..(10 + data.len())].copy_from_slice(data);
+        let header_bytes: usize = if header.packet_type.timecode {
+            let header_bytes: [u8; 14] = header.into();
+            self.buffer[0..14].copy_from_slice(&header_bytes);
+            14usize
 
-        return 10 + data.len();
+        } else {
+            let header_bytes: [u8; 10] = header.into();
+            self.buffer[0..10].copy_from_slice(&header_bytes);
+            10usize
+        };
+        self.buffer[header_bytes..(header_bytes + data.len())].copy_from_slice(data);
+
+        return header_bytes + data.len();
     }
 }
 
@@ -132,7 +134,7 @@ impl Controller {
     }
 
     fn recieve_filter(
-        socket: &std::net::UdpSocket,
+        socket: &UdpSocket,
         mut buffer: &mut [u8],
         conn: &Arc<DashMap<IpAddr, Sender<Packet>>>,
     ) -> Result<(usize, SocketAddr), DDPError> {
@@ -152,17 +154,17 @@ impl Controller {
     pub fn new_with_socket(socket: UdpSocket) -> Result<Controller, DDPError> {
         let conn = Arc::new(DashMap::new());
 
-        let socket_reciever = socket.try_clone()?;
+        let socket_receiver = socket.try_clone()?;
         let conn_rec = conn.clone();
 
         thread::spawn(move || {
-            // Define our receieve buffer, "1500 bytes should be enough for anyone".
+            // Define our receive buffer, "1500 bytes should be enough for anyone".
             // Github copilot actually suggested that, so sassy LOL.
             let mut buffer: [u8; 1500] = [0; 1500];
-            match Self::recieve_filter(&socket_reciever, &mut buffer, &conn_rec) {
-                Ok((bytes_recieved, addr)) => {
+            match Self::recieve_filter(&socket_receiver, &mut buffer, &conn_rec) {
+                Ok((bytes_received, addr)) => {
                     // Parse packet
-                    let packet = Packet::from_bytes(&buffer[0..bytes_recieved]);
+                    let packet = Packet::from_bytes(&buffer[0..bytes_received]);
 
                     // Find connection to send to
                     match conn_rec.get(&addr.ip()) {
@@ -177,7 +179,7 @@ impl Controller {
                     };
                 }
                 Err(err) => {
-                    warn!("Error recieving packet: {:?}", err);
+                    warn!("Error receiving packet: {:?}", err);
                 }
             }
         });
@@ -190,7 +192,7 @@ impl Controller {
 
     /// Connect to a DDP display
     ///
-    /// Returns a connection which you can write to and a reciever which parses and returns packets.
+    /// Returns a connection which you can write to and a receiver which parses and returns packets.
     ///
 
     pub fn connect<A>(
