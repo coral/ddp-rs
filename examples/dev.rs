@@ -1,19 +1,18 @@
 use anyhow::Result;
-use ddp_rs::controller;
+use ddp_rs::connection;
 use std::{thread, time};
+use std::net::UdpSocket;
+use ddp_rs::protocol::{ID, PixelConfig};
 
 fn main() -> Result<()> {
 
-    let mut v = controller::Controller::new()?;
-
-    // Connect to a DDP display with default pixel settings (RGB, 24 bits, ID 1)
-    let (mut c, _) = v.connect(
-
-        "192.168.1.40:4048",    // the port is specified to always be 4048 in the DDP protocol
-
-        ddp_rs::protocol::PixelConfig::default(),
-        ddp_rs::protocol::ID::default(),
-    )?;
+    let mut conn = connection::DDPConnection::try_new
+        (
+            "192.168.1.40:4048",
+            PixelConfig::default(),
+            ID::Default,
+            UdpSocket::bind("0.0.0.0:4048").unwrap()
+        )?;
 
     thread::sleep(time::Duration::from_millis(100));
 
@@ -22,7 +21,7 @@ fn main() -> Result<()> {
 
         // loop through some colors
 
-        let temp: usize = c.write(&vec![
+        let temp: usize = conn.write(&vec![
             high/*red value*/, 0/*green value*/, 0/*blue value*/,
             high/*red value*/, 0/*green value*/, 0/*blue value*/,
             0/*red value*/, high/*green value*/, 0/*blue value*/,

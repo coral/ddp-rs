@@ -15,4 +15,8 @@ pub enum DDPError {
     },
     #[error("Invalid packet")]
     InvalidPacket,
+    #[error("There are no packets waiting to be read. This error should be handled explicitly")]
+    NothingToReceive,
+    #[error("Error receiving packet: {0}")]
+    CrossBeamError(#[from] crossbeam::channel::TryRecvError),
 }
