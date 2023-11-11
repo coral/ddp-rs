@@ -18,6 +18,7 @@ pub struct Controller {
 const MAX_DATA_LENGTH: usize = 480 * 3;
 
 /// Represents a connection to a DDP display
+#[derive(Debug)]
 pub struct Connection {
     pub pixel_config: protocol::PixelConfig,
     pub id: protocol::ID,
@@ -30,11 +31,13 @@ pub struct Connection {
     buffer: [u8; 1500],
 }
 
+
 impl Connection {
     /// Writes pixel data to the display
     ///
     /// You send the data and the offset to start writing at
     pub fn write(&mut self, data: &[u8]) -> Result<usize, DDPError> {
+
         let mut h = protocol::Header::default();
 
         h.packet_type.push(false);
@@ -88,6 +91,7 @@ impl Connection {
             // Send to socket
             sent += self.socket.send_to(&self.buffer[0..len], self.addr)?;
 
+
             // Increment sequence number
             if self.sequence_number > 15 {
                 self.sequence_number = 1;
@@ -133,11 +137,12 @@ impl Controller {
         Controller::new_with_socket(socket)
     }
 
-    fn recieve_filter(
+    fn receive_filter(
         socket: &UdpSocket,
         mut buffer: &mut [u8],
         conn: &Arc<DashMap<IpAddr, Sender<Packet>>>,
     ) -> Result<(usize, SocketAddr), DDPError> {
+
         let (number_of_bytes, src_addr) = socket.recv_from(&mut buffer)?;
 
         match conn.contains_key(&src_addr.ip()) {
@@ -161,16 +166,25 @@ impl Controller {
             // Define our receive buffer, "1500 bytes should be enough for anyone".
             // Github copilot actually suggested that, so sassy LOL.
             let mut buffer: [u8; 1500] = [0; 1500];
-            match Self::recieve_filter(&socket_receiver, &mut buffer, &conn_rec) {
+            match Self::receive_filter(&socket_receiver, &mut buffer, &conn_rec) {
                 Ok((bytes_received, addr)) => {
+
+
                     // Parse packet
                     let packet = Packet::from_bytes(&buffer[0..bytes_received]);
 
                     // Find connection to send to
+
+                    //TODO: Am I bugging or is conn_rec never going to change?
+                    // it works either way, but im lost
+
                     match conn_rec.get(&addr.ip()) {
                         Some(ch) => match ch.send(packet) {
-                            Ok(_) => {}
+                            Ok(_) => {
+
+                            }
                             Err(_) => {
+
                                 // listener is closed, remove from connection array
                                 conn_rec.remove(&addr.ip());
                             }
@@ -226,6 +240,10 @@ impl Controller {
         ))
     }
 }
+
+
+
+
 
 #[cfg(test)]
 mod tests {
