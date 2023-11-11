@@ -21,7 +21,7 @@ pub struct Header {
     pub id: ID,
     pub offset: u32,
     pub length: u16,
-    pub time_code: TimeCode,
+    pub time_code: TimeCode, //technically supported, although untested and relies on user to handle
 }
 
 
