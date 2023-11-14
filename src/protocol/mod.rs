@@ -8,10 +8,11 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 
 pub mod id;
 pub use id::ID;
-use crate::protocol::timecode::TimeCode;
 
 pub mod message;
+
 pub mod timecode;
+use timecode::TimeCode;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Header {
@@ -23,8 +24,6 @@ pub struct Header {
     pub length: u16,
     pub time_code: TimeCode, //technically supported, although untested and relies on user to handle
 }
-
-
 
 impl Default for Header {
     fn default() -> Self {
@@ -47,7 +46,6 @@ impl Into<[u8; 10]> for Header {
 
         // Write the packet type field to the buffer
 
-
         let packet_type_byte: u8 = self.packet_type.into();
         buffer[0] = packet_type_byte;
 
@@ -68,8 +66,6 @@ impl Into<[u8; 10]> for Header {
         let length_bytes = self.length.to_be_bytes();
         buffer[8..10].copy_from_slice(&length_bytes);
 
-
-
         // Return a slice of the buffer representing the entire header
         buffer
     }
@@ -80,7 +76,6 @@ impl Into<[u8; 14]> for Header {
         let mut buffer = [0u8; 14];
 
         // Write the packet type field to the buffer
-
 
         let packet_type_byte: u8 = self.packet_type.into();
         buffer[0] = packet_type_byte;
@@ -112,7 +107,6 @@ impl Into<[u8; 14]> for Header {
 
 impl<'a> From<&'a [u8]> for Header {
     fn from(bytes: &'a [u8]) -> Self {
-
         // Extract the packet type field from the buffer
         let packet_type = PacketType::from(bytes[0]);
 
@@ -132,7 +126,6 @@ impl<'a> From<&'a [u8]> for Header {
         let length = u16::from_be_bytes([bytes[8], bytes[9]]);
 
         return if packet_type.timecode && bytes.len() >= 14 {
-
             let time_code = TimeCode::from_4_bytes([bytes[10], bytes[11], bytes[12], bytes[13]]);
 
             Header {
@@ -142,7 +135,7 @@ impl<'a> From<&'a [u8]> for Header {
                 id,
                 offset,
                 length,
-                time_code
+                time_code,
             }
         } else {
             Header {
@@ -152,9 +145,9 @@ impl<'a> From<&'a [u8]> for Header {
                 id,
                 offset,
                 length,
-                time_code: TimeCode(None)
+                time_code: TimeCode(None),
             }
-        }
+        };
     }
 }
 
