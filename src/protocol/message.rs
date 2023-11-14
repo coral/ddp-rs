@@ -99,6 +99,18 @@ impl Message {
     }
 }
 
+impl Into<ID> for Message {
+    fn into(self) -> ID {
+        match self {
+            Message::Control(_) => crate::protocol::ID::Control,
+            Message::Status(_) => crate::protocol::ID::Status,
+            Message::Config(_) => crate::protocol::ID::Config,
+            Message::Parsed((i, _)) => i,
+            Message::Unparsed((i, _)) => i,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
