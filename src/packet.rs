@@ -24,7 +24,7 @@ impl Packet {
 
     pub fn from_bytes(bytes: &[u8]) -> Self {
         let header_bytes = &bytes[0..14];
-        let header = Header::try_from(header_bytes).unwrap();
+        let header = Header::try_from(header_bytes).unwrap(); // TODO forgot this mf when i made header::from_bytes in to 'try_from'
         let mut start_index: usize = 10;
         if header.packet_type.timecode{
             start_index = 14;
