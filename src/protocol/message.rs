@@ -87,14 +87,14 @@ impl TryInto<Vec<u8>> for Message {
     }
 }
 
-impl Into<ID> for Message {
-    fn into(self) -> ID {
+impl Message {
+    pub fn get_id(&self) -> ID {
         match self {
-            Message::Control(_) => crate::protocol::ID::Control,
-            Message::Status(_) => crate::protocol::ID::Status,
-            Message::Config(_) => crate::protocol::ID::Config,
-            Message::Parsed((i, _)) => i,
-            Message::Unparsed((i, _)) => i,
+            Message::Control(_) => ID::Control,
+            Message::Status(_) => ID::Status,
+            Message::Config(_) => ID::Config,
+            Message::Parsed((i, _)) => *i,
+            Message::Unparsed((i, _)) => *i,
         }
     }
 }
@@ -106,7 +106,7 @@ mod tests {
     #[test]
     fn test_id_into() {
         let msg = Message::Parsed((ID::Config, Value::Null));
-        let id: ID = msg.clone().into();
+        let id: ID = msg.get_id();
         assert_eq!(id, ID::Config);
 
         let vm: Vec<u8> = msg.try_into().unwrap();

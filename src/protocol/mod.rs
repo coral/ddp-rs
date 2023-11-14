@@ -1,3 +1,5 @@
+// http://www.3waylabs.com/ddp/
+
 pub mod packet_type;
 pub use packet_type::*;
 
@@ -6,8 +8,10 @@ pub use pixel_config::{PixelConfig, PixelFormat};
 
 pub mod id;
 pub use id::ID;
+use crate::protocol::timecode::TimeCode;
 
 pub mod message;
+pub mod timecode;
 
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub struct Header {
@@ -17,9 +21,10 @@ pub struct Header {
     pub id: ID,
     pub offset: u32,
     pub length: u16,
-    // TODO - Implement timecode
-    //pub timecode: u32,
+    pub time_code: TimeCode, //technically supported, although untested and relies on user to handle
 }
+
+
 
 impl Default for Header {
     fn default() -> Self {
@@ -30,7 +35,7 @@ impl Default for Header {
             id: Default::default(),
             offset: Default::default(),
             length: Default::default(),
-            //timecode: 0,
+            time_code: Default::default(),
         }
     }
 }
@@ -38,10 +43,12 @@ impl Default for Header {
 impl Into<[u8; 10]> for Header {
     fn into(self) -> [u8; 10] {
         // Define a byte array with the size of the header
-        let mut buffer = [0u8; 10];
+        let mut buffer: [u8; 10] = [0u8; 10];
 
         // Write the packet type field to the buffer
-        let packet_type_byte = self.packet_type.into();
+
+
+        let packet_type_byte: u8 = self.packet_type.into();
         buffer[0] = packet_type_byte;
 
         // Write the sequence number field to the buffer
@@ -61,6 +68,43 @@ impl Into<[u8; 10]> for Header {
         let length_bytes = self.length.to_be_bytes();
         buffer[8..10].copy_from_slice(&length_bytes);
 
+
+
+        // Return a slice of the buffer representing the entire header
+        buffer
+    }
+}
+impl Into<[u8; 14]> for Header {
+    fn into(self) -> [u8; 14] {
+        // Define a byte array with the size of the header
+        let mut buffer = [0u8; 14];
+
+        // Write the packet type field to the buffer
+
+
+        let packet_type_byte: u8 = self.packet_type.into();
+        buffer[0] = packet_type_byte;
+
+        // Write the sequence number field to the buffer
+        buffer[1] = self.sequence_number;
+
+        // Write the pixel config field to the buffer
+        buffer[2] = self.pixel_config.into();
+
+        // Write the id field to the buffer
+        buffer[3] = self.id.into();
+
+        // Write the offset field to the buffer
+        let offset_bytes: [u8; 4] = self.offset.to_be_bytes();
+        buffer[4..8].copy_from_slice(&offset_bytes);
+
+        // Write the length field to the buffer
+        let length_bytes: [u8; 2] = self.length.to_be_bytes();
+        buffer[8..10].copy_from_slice(&length_bytes);
+
+        let time_code: [u8; 4] = self.time_code.to_bytes();
+        buffer[10..14].copy_from_slice(&time_code);
+
         // Return a slice of the buffer representing the entire header
         buffer
     }
@@ -68,6 +112,7 @@ impl Into<[u8; 10]> for Header {
 
 impl<'a> From<&'a [u8]> for Header {
     fn from(bytes: &'a [u8]) -> Self {
+
         // Extract the packet type field from the buffer
         let packet_type = PacketType::from(bytes[0]);
 
@@ -86,13 +131,29 @@ impl<'a> From<&'a [u8]> for Header {
         // Extract the length field from the buffer
         let length = u16::from_be_bytes([bytes[8], bytes[9]]);
 
-        Header {
-            packet_type,
-            sequence_number,
-            pixel_config,
-            id,
-            offset,
-            length,
+        return if packet_type.timecode && bytes.len() >= 14 {
+
+            let time_code = TimeCode::from_4_bytes([bytes[10], bytes[11], bytes[12], bytes[13]]);
+
+            Header {
+                packet_type,
+                sequence_number,
+                pixel_config,
+                id,
+                offset,
+                length,
+                time_code
+            }
+        } else {
+            Header {
+                packet_type,
+                sequence_number,
+                pixel_config,
+                id,
+                offset,
+                length,
+                time_code: TimeCode(None)
+            }
         }
     }
 }
