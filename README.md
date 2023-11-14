@@ -65,6 +65,9 @@ yes. but it works for WLED, and thats all I can test or care about.
 
 m8 just open a PR with some gucchimucchi code and I'll review it.
 
-Good example is [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1) Absolute legendary PR right there.
-
 ![KADSBUGGEL](https://raw.githubusercontent.com/coral/fluidsynth2/master/kadsbuggel.png)
+
+## Contributors
+
+- [coral](https://www.youtube.com/@coral1), main clown of this library
+- [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1) Absolute legendary PR right there.
