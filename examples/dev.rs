@@ -1,6 +1,6 @@
 use anyhow::Result;
-use ddp_connection::connection;
-use ddp_connection::protocol;
+use ddp_rs::connection;
+use ddp_rs::protocol;
 
 fn main() -> Result<()> {
 
