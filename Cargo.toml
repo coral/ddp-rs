@@ -1,12 +1,12 @@
 [package]
-name = "ddp-connection"
-version = "0.1.0"
+name = "ddp-rs"
+version = "0.2.1"
 edition = "2021"
 license = "MIT"
-keywords = ["protocol", "ddp", "pixel", "wled"]
+keywords = ["distributed", "display", "protocol", "ddp", "pixel"]
 categories = ["network-programming", "multimedia"]
-description = "Distributed Display Protocol (DDP) in Rust. This is a fork of ddp-rs by Coral https://github.com/coral/ddp-rs"
-repository = "https://github.com/paulwrath1223/WLED-Streamer"
+description = "Distributed Display Protocol (DDP) in Rust"
+repository = "https://github.com/coral/ddp-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
