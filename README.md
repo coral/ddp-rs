@@ -1,4 +1,4 @@
-# Fork of [this](https://github.com/coral/ddp-rs) project by the wonderful Coral
+# Distributed Display Protocol (DDP) in Rust
 
 This package allows you to write pixel data to a LED strip over [Distributed Display Protocol (DDP)](http://www.3waylabs.com/ddp/) by 3waylabs.
 
@@ -49,16 +49,22 @@ fn main() -> Result<()> {
 
 or try it by running `cargo run --example dev`
 
+## Why?
+
+I wish I could tell you. I've gone back and forth on these bespoke LED protocols and DDP seems like the most "sane" one although the "specification" leaves some to be desired. [TPM2.net](https://gist.github.com/jblang/89e24e2655be6c463c56) was another possible protocol which [i started to implement](https://github.com/coral/tpm2net) but stopped after I realized how bad it is. Artnet and E1.31 is great but then you have framerate problem (approx 40-44 FPS) to maintain backwards compatbility with DMX.
+
+DDP sits in the middle here as "sane" but not perfect, hence why I implemented it for whatever it is I'm doing. It doesn't mandate a framerate, it's spec agnostic to if you send it over UDP or TCP (although I suspect most vendors only accept UDP) and it's open ended in that it relies on JSON for messaging. On top of that the author shoved so much data into the 10 byte header it's almost impressive. Only drawback is that clients needs to implement JSON parsing if they want to be smart but that's tablestakes at this point for anything connected.
+
+For any future "i'm going to invent my own LED protocol" people out there, take note from the people in broadcast video instead of your jank ham radio serial protocol. I like the "freeform pixel struture" but there would probably be value to a more structured "session" where you standardize on how to communicate pixel size etc.
+
 ## Is it trash?
 
 yes. but it works for WLED, and thats all I can test or care about.
 
-## Why?
-
-I wanted to stream color values to a WLED controller, and DDP has the highest framerate of any protocol I could find
-
 ## Contributing
 
 m8 just open a PR with some gucchimucchi code and I'll review it.
+
+Good example is [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1) Absolute legendary PR right there.
 
 ![KADSBUGGEL](https://raw.githubusercontent.com/coral/fluidsynth2/master/kadsbuggel.png)
