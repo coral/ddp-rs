@@ -164,7 +164,6 @@ impl DDPConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::packet;
     use crate::protocol::{PixelConfig, ID};
     use crossbeam::channel::unbounded;
     use std::thread;
@@ -177,6 +176,8 @@ mod tests {
 
         thread::spawn(move || {
             let socket = UdpSocket::bind("127.0.0.1:4048").unwrap();
+
+            // Recieve 2 messages
             let mut buf = [0; 1500];
             let (amt, _) = socket.recv_from(&mut buf).unwrap();
             let buf = &mut buf[..amt];
@@ -192,11 +193,16 @@ mod tests {
         )
         .unwrap();
 
+        // Test simple send
         conn.write(data_to_send).unwrap();
-
+        std::thread::sleep(std::time::Duration::from_millis(10));
         let recv_data = r.recv().unwrap();
-        let p = packet::Packet::from_bytes(&recv_data);
-
-        assert_eq!(data_to_send, p.data.as_slice());
+        assert_eq!(
+            &vec![
+                0x41, 0x01, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x09, 0xFF, 0x00, 0x00, 0xFF,
+                0x00, 0x00, 0xFF, 0x00, 0x00
+            ],
+            &recv_data
+        );
     }
 }
