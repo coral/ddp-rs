@@ -59,7 +59,7 @@ For any future "i'm going to invent my own LED protocol" people out there, take 
 
 ## Is it trash?
 
-yes. but it works for WLED, and thats all I can test or care about.
+Most definitely. I've only tested it with WLED so if you come across some other expensive controller that supports DDP (such as the [Minleon NDB Pro](https://minleonusa.com/product/ndb-pro/)), please try it and let me know.
 
 ## Contributing
 
@@ -70,4 +70,4 @@ m8 just open a PR with some gucchimucchi code and I'll review it.
 ## Contributors
 
 - [coral](https://www.youtube.com/@coral1), main clown of this library
-- [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1) Absolute legendary PR right there.
+- [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1). Absolute legendary PR right there.
