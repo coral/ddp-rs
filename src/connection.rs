@@ -177,7 +177,6 @@ mod tests {
         thread::spawn(move || {
             let socket = UdpSocket::bind("127.0.0.1:4048").unwrap();
 
-            // Recieve 2 messages
             let mut buf = [0; 1500];
             let (amt, _) = socket.recv_from(&mut buf).unwrap();
             let buf = &mut buf[..amt];
