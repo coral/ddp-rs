@@ -8,8 +8,8 @@ You can use this to stream pixel data to [WLED](https://github.com/Aircoookie/WL
 
 ```rust
 use anyhow::Result;
-use ddp_connection::connection;
-use ddp_connection::protocol;
+use ddp_rs::connection;
+use ddp_rs::protocol;
 
 fn main() -> Result<()> {
 
@@ -28,7 +28,7 @@ fn main() -> Result<()> {
 
         // loop through some colors
 
-        let temp: usize = conn.write(&vec![
+        let temp: usize = conn.write(&[
             high/*red value*/, 0/*green value*/, 0/*blue value*/,
             high/*red value*/, 0/*green value*/, 0/*blue value*/,
             0/*red value*/, high/*green value*/, 0/*blue value*/,
