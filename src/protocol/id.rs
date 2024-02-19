@@ -1,7 +1,8 @@
 use serde::{Deserialize, Serialize};
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy, Default)]
 pub enum ID {
     Reserved,
+    #[default]
     Default,
     Custom(u8),
     Control,
@@ -32,7 +33,7 @@ impl Into<u8> for ID {
         match self {
             ID::Reserved => 0,
             ID::Default => 1,
-            ID::Custom(value) if value >= 2 && value <= 246 => value,
+            ID::Custom(value) if (2..=246).contains(&value) => value,
             ID::Control => 249,
             ID::Config => 250,
             ID::Status => 251,
@@ -40,12 +41,6 @@ impl Into<u8> for ID {
             ID::Broadcast => 255,
             ID::Custom(_) => 1,
         }
-    }
-}
-
-impl Default for ID {
-    fn default() -> Self {
-        ID::Default
     }
 }
 

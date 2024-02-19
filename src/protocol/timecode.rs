@@ -1,5 +1,4 @@
-
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Default)]
 pub struct TimeCode(pub Option<u32>);
 
 impl TimeCode {
@@ -7,13 +6,7 @@ impl TimeCode {
         TimeCode(Some(u32::from_be_bytes(bytes)))
     }
 
-    pub fn to_bytes(&self) -> [u8; 4]{
+    pub fn to_bytes(&self) -> [u8; 4] {
         self.0.unwrap_or(0u32).to_be_bytes()
-    }
-}
-
-impl Default for TimeCode {
-    fn default() -> Self {
-        TimeCode(None)
     }
 }

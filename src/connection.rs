@@ -110,7 +110,7 @@ impl DDPConnection {
     pub fn get_incoming(&self) -> Result<Packet, DDPError> {
         match self.receiver_packet.try_recv() {
             Ok(packet) => Ok(packet),
-            Err(e) if e == TryRecvError::Empty => Err(DDPError::NothingToReceive),
+            Err(TryRecvError::Empty) => Err(DDPError::NothingToReceive),
             Err(e2) => Err(CrossBeamError(e2)),
         }
     }
@@ -157,7 +157,7 @@ impl DDPConnection {
         };
         self.buffer[header_bytes..(header_bytes + data.len())].copy_from_slice(data);
 
-        return header_bytes + data.len();
+        header_bytes + data.len()
     }
 }
 

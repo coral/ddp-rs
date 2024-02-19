@@ -26,11 +26,10 @@ impl Packet {
         let header_bytes = &bytes[0..14];
         let header = Header::from(header_bytes);
         let mut start_index: usize = 10;
-        if header.packet_type.timecode{
+        if header.packet_type.timecode {
             start_index = 14;
         }
         let data = &bytes[start_index..];
-
 
         let mut parsed: Option<Message> = None;
 
@@ -62,7 +61,7 @@ impl Packet {
                         // JSON Value it is
                         Ok(v) => Some(Message::Parsed((header.id, v))),
                         // Ok we're really screwed, lets just return the raw data as a string
-                        Err(_) => match std::str::from_utf8(&data) {
+                        Err(_) => match std::str::from_utf8(data) {
                             Ok(v) => Some(Message::Unparsed((header.id, v.to_string()))),
                             // I guess it's... just bytes?
                             Err(_) => None,
@@ -79,7 +78,6 @@ impl Packet {
         }
     }
 }
-
 
 #[cfg(test)]
 mod tests {

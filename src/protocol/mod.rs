@@ -14,7 +14,7 @@ pub mod message;
 pub mod timecode;
 use timecode::TimeCode;
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Default)]
 pub struct Header {
     pub packet_type: PacketType,
     pub sequence_number: u8,
@@ -23,20 +23,6 @@ pub struct Header {
     pub offset: u32,
     pub length: u16,
     pub time_code: TimeCode, //technically supported, although untested and relies on user to handle
-}
-
-impl Default for Header {
-    fn default() -> Self {
-        Self {
-            packet_type: Default::default(),
-            sequence_number: Default::default(),
-            pixel_config: Default::default(),
-            id: Default::default(),
-            offset: Default::default(),
-            length: Default::default(),
-            time_code: Default::default(),
-        }
-    }
 }
 
 impl Into<[u8; 10]> for Header {
@@ -125,7 +111,7 @@ impl<'a> From<&'a [u8]> for Header {
         // Extract the length field from the buffer
         let length = u16::from_be_bytes([bytes[8], bytes[9]]);
 
-        return if packet_type.timecode && bytes.len() >= 14 {
+        if packet_type.timecode && bytes.len() >= 14 {
             let time_code = TimeCode::from_4_bytes([bytes[10], bytes[11], bytes[12], bytes[13]]);
 
             Header {
@@ -147,7 +133,7 @@ impl<'a> From<&'a [u8]> for Header {
                 length,
                 time_code: TimeCode(None),
             }
-        };
+        }
     }
 }
 
