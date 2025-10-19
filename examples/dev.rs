@@ -3,11 +3,18 @@ use ddp_rs::connection;
 use ddp_rs::protocol;
 
 fn main() -> Result<()> {
+    // Allow specifying target address as command-line argument
+    let target = std::env::args()
+        .nth(1)
+        .unwrap_or_else(|| "192.168.1.40:4048".to_string());
+
+    println!("Sending to: {}", target);
+
     let mut conn = connection::DDPConnection::try_new(
-        "192.168.1.40:4048", // The IP address of the device followed by :4048
+        &target, // The IP address of the device followed by :4048
         protocol::PixelConfig::default(), // Default is RGB, 8 bits ber channel
         protocol::ID::Default,
-        std::net::UdpSocket::bind("0.0.0.0:4048").unwrap(), // can be any unused port on 0.0.0.0, but protocol recommends 4048
+        std::net::UdpSocket::bind("0.0.0.0:0").unwrap(), // can be any unused port on 0.0.0.0
     )?;
 
     // loop sets some colors for the first 6 pixels to see if it works

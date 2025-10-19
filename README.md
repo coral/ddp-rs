@@ -49,6 +49,20 @@ fn main() -> Result<()> {
 
 or try it by running `cargo run --example dev`
 
+### Console Server Example
+
+Test DDP! The `consoleserver` example creates a virtual LED strip in your terminal.
+
+```bash
+# Terminal 1: Start the console server
+cargo run --example consoleserver
+
+# Terminal 2: Send it some pixels using the dev example
+cargo run --example dev -- 127.0.0.1:4048
+```
+
+The console server listens on `0.0.0.0:4048` and displays incoming DDP packets as colored blocks in your terminal. Ended up being very useful when debugging junk.
+
 ## Why?
 
 I wish I could tell you. I've gone back and forth on these bespoke LED protocols and DDP seems like the most "sane" one although the "specification" leaves some to be desired. [TPM2.net](https://gist.github.com/jblang/89e24e2655be6c463c56) was another possible protocol which [i started to implement](https://github.com/coral/tpm2net) but stopped after I realized how bad it is. Artnet and E1.31 is great but then you have framerate problem (approx 40-44 FPS) to maintain backwards compatbility with DMX.
