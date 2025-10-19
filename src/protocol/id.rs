@@ -1,14 +1,58 @@
 use serde::{Deserialize, Serialize};
+
+/// Protocol ID used to identify the purpose of a packet.
+///
+/// IDs are used to differentiate between pixel data, control messages, configuration
+/// queries, and other packet types. The ID space is divided into several ranges:
+///
+/// - 0: Reserved
+/// - 1: Default (standard pixel data)
+/// - 2-246: Custom IDs for application-specific use
+/// - 249: Control messages
+/// - 250: Configuration messages
+/// - 251: Status messages
+/// - 254: DMX data
+/// - 255: Broadcast to all displays
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::protocol::ID;
+///
+/// // Standard pixel data
+/// let pixel_id = ID::Default;
+///
+/// // Control message
+/// let control_id = ID::Control;
+///
+/// // Custom application ID
+/// let custom_id = ID::Custom(42);
+/// ```
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy, Default)]
 pub enum ID {
+    /// Reserved, should not be used
     Reserved,
+
+    /// Default ID for standard pixel data
     #[default]
     Default,
+
+    /// Custom ID in the range 2-246
     Custom(u8),
+
+    /// Control message ID (249)
     Control,
+
+    /// Configuration message ID (250)
     Config,
+
+    /// Status message ID (251)
     Status,
+
+    /// DMX data ID (254)
     DMX,
+
+    /// Broadcast to all displays (255)
     Broadcast,
 }
 

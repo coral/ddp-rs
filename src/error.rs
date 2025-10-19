@@ -1,22 +1,44 @@
+//! Error types for DDP operations.
+//!
+//! This module defines all error types that can occur when working with DDP connections.
+
 use thiserror::Error;
 
+/// Errors that can occur during DDP operations.
+///
+/// All errors implement the standard [`std::error::Error`] trait via `thiserror`.
 #[derive(Error, Debug)]
 pub enum DDPError {
+    /// Socket or network I/O error
     #[error("socket error")]
     Disconnect(#[from] std::io::Error),
+
+    /// Failed to resolve the provided address
     #[error("No valid socket addr found")]
     NoValidSocketAddr,
+
+    /// JSON parsing error for control messages
     #[error("parse error")]
     ParseError(#[from] serde_json::Error),
+
+    /// Received data from an unknown or unexpected client
     #[error("invalid sender, did you forget to connect() ( data from {from:?} - {data:?})")]
     UnknownClient {
+        /// The address that sent the unexpected data
         from: std::net::SocketAddr,
+        /// The unexpected data received
         data: Vec<u8>,
     },
+
+    /// Received packet with invalid format or structure
     #[error("Invalid packet")]
     InvalidPacket,
+
+    /// No packets are currently available to receive (non-blocking operation)
     #[error("There are no packets waiting to be read. This error should be handled explicitly")]
     NothingToReceive,
+
+    /// Error from the internal packet receiver channel
     #[error("Error receiving packet: {0}")]
     CrossBeamError(#[from] crossbeam::channel::TryRecvError),
 }

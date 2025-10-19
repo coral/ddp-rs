@@ -1,19 +1,44 @@
+//! Packet parsing for receiving data from DDP displays.
+//!
+//! This module provides the [`Packet`] type for parsing incoming DDP packets,
+//! typically used when receiving responses from displays.
+
 use crate::protocol::{message::Message, Header};
 
+/// A parsed DDP packet received from a display.
+///
+/// This struct represents packets sent back by displays, such as status updates,
+/// configuration responses, or acknowledgments.
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::packet::Packet;
+///
+/// // Parse a packet from raw bytes
+/// let bytes = vec![
+///     0x41, 0x01, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+///     0xFF, 0x00, 0x00  // 1 RGB pixel: red
+/// ];
+/// let packet = Packet::from_bytes(&bytes);
+///
+/// assert_eq!(packet.header.sequence_number, 1);
+/// assert_eq!(packet.data, vec![0xFF, 0x00, 0x00]);
+/// ```
 #[derive(Debug, PartialEq, Clone)]
-/// Packet is our internal representation of a recieved packet
-/// Used to parse messages sent back by displays
-/// This struct does allocate!
 pub struct Packet {
-    /// The packet header
+    /// The parsed packet header with metadata
     pub header: Header,
-    /// Raw data, if you're getting pixels this is the one you want
+
+    /// Raw pixel data (if this packet contains pixels)
     pub data: Vec<u8>,
-    /// For anything that's messaging, we try to parse it or cast it to string here
+
+    /// Parsed JSON message (if this packet contains a message)
     pub parsed: Option<Message>,
 }
 
 impl Packet {
+    /// Creates a packet from a header and data slice (without parsing).
     pub fn from_data(h: Header, d: &[u8]) -> Packet {
         Packet {
             header: h,
@@ -22,6 +47,34 @@ impl Packet {
         }
     }
 
+    /// Parses a DDP packet from raw bytes.
+    ///
+    /// This method handles both 10-byte and 14-byte headers (with timecode),
+    /// and attempts to parse JSON messages if the packet is a reply/query.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - Raw packet bytes including header and data
+    ///
+    /// # Returns
+    ///
+    /// A parsed `Packet`. If parsing fails, returns a default packet with empty data.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ddp_rs::packet::Packet;
+    ///
+    /// let bytes = vec![
+    ///     0x41, 0x01, 0x0D, 0x01,           // Packet type, seq, config, id
+    ///     0x00, 0x00, 0x00, 0x00,           // Offset
+    ///     0x00, 0x06,                        // Length = 6
+    ///     0xFF, 0x00, 0x00,                 // Pixel 1: Red
+    ///     0x00, 0xFF, 0x00,                 // Pixel 2: Green
+    /// ];
+    /// let packet = Packet::from_bytes(&bytes);
+    /// assert_eq!(packet.data.len(), 6);
+    /// ```
     pub fn from_bytes(bytes: &[u8]) -> Self {
         // Ensure we have at least 10 bytes for the minimum header
         if bytes.len() < 10 {

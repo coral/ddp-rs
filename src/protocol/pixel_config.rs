@@ -1,32 +1,77 @@
+/// Pixel data type (color space).
+///
+/// Defines how pixel color values should be interpreted.
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Clone, Copy)]
 #[repr(u8)]
 #[allow(dead_code)]
 pub enum DataType {
+    /// Undefined or custom data type
     Undefined,
+    /// Red, Green, Blue
     RGB,
+    /// Hue, Saturation, Lightness
     HSL,
+    /// Red, Green, Blue, White
     RGBW,
+    /// Grayscale/monochrome
     Grayscale,
 }
 
+/// Number of bits per pixel.
+///
+/// Defines the bit depth for each pixel's data.
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Clone, Copy)]
 #[repr(u8)]
 #[allow(dead_code)]
 pub enum PixelFormat {
+    /// Undefined format
     Undefined,
+    /// 1 bit per pixel
     Pixel1Bits,
+    /// 4 bits per pixel
     Pixel4Bits,
+    /// 8 bits per pixel (1 byte)
     Pixel8Bits,
+    /// 16 bits per pixel (2 bytes)
     Pixel16Bits,
+    /// 24 bits per pixel (3 bytes) - standard RGB
     Pixel24Bits,
+    /// 32 bits per pixel (4 bytes) - RGBA or RGBW
     Pixel32Bits,
 }
 
+/// Pixel format configuration.
+///
+/// Describes how pixel data is encoded in the packet. The default configuration
+/// is RGB with 8 bits per channel (24 bits total per pixel).
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::protocol::{PixelConfig, DataType, PixelFormat};
+///
+/// // Default: RGB, 8 bits per channel
+/// let config = PixelConfig::default();
+/// assert_eq!(config.data_type, DataType::RGB);
+/// assert_eq!(config.data_size, PixelFormat::Pixel24Bits);
+///
+/// // Custom: RGBW pixels
+/// let rgbw_config = PixelConfig {
+///     data_type: DataType::RGBW,
+///     data_size: PixelFormat::Pixel32Bits,
+///     customer_defined: false,
+/// };
+/// ```
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Hash, Clone, Copy)]
 #[allow(dead_code)]
 pub struct PixelConfig {
+    /// Color space / data type
     pub data_type: DataType,
+
+    /// Bits per pixel
     pub data_size: PixelFormat,
+
+    /// Whether this is a custom/vendor-specific configuration
     pub customer_defined: bool,
 }
 

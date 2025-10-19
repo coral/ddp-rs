@@ -1,15 +1,50 @@
+/// Packet type flags that control protocol behavior.
+///
+/// The packet type is encoded in byte 0 of the header and contains flags
+/// that determine how the packet should be interpreted and processed.
+///
+/// # Flag Bits
+///
+/// - Bits 6-7: Protocol version (1-4)
+/// - Bit 4: Timecode present (if set, header is 14 bytes instead of 10)
+/// - Bit 3: Storage (for persisting settings)
+/// - Bit 2: Reply (packet is a response)
+/// - Bit 1: Query (request information)
+/// - Bit 0: Push (final packet in sequence)
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::protocol::PacketType;
+///
+/// let mut pkt = PacketType::default();
+/// pkt.push = true;  // Mark as final packet
+/// pkt.version = 1;  // DDP version 1
+/// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 #[allow(dead_code)]
 pub struct PacketType {
-    pub version: u8, // 0x40 ( 2 bit value, can be a value between 1-4 depending on version mask, )
-    pub timecode: bool, // 0x10
-    pub storage: bool, // 0x08
-    pub reply: bool, // 0x04
-    pub query: bool, //0x02
-    pub push: bool,  //0x01
+    /// Protocol version (1-4)
+    pub version: u8,
+
+    /// Timecode is present (extends header to 14 bytes)
+    pub timecode: bool,
+
+    /// Storage flag (persist settings)
+    pub storage: bool,
+
+    /// Reply flag (this is a response packet)
+    pub reply: bool,
+
+    /// Query flag (request information)
+    pub query: bool,
+
+    /// Push flag (final packet in a sequence)
+    pub push: bool,
 }
 
 impl PacketType {
+    /// Sets the push flag, indicating this is the final packet in a sequence.
     pub fn push(&mut self, push: bool) {
         self.push = push;
     }

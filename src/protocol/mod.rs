@@ -1,10 +1,30 @@
-// http://www.3waylabs.com/ddp/
+// Protocol specification: http://www.3waylabs.com/ddp/
+
+//! DDP protocol types and structures.
+//!
+//! This module contains all the types defined by the Distributed Display Protocol specification,
+//! including headers, packet types, pixel configurations, and control messages.
+//!
+//! # Protocol Overview
+//!
+//! The DDP protocol uses a 10 or 14 byte header (depending on whether timecode is included)
+//! followed by pixel data or JSON control messages.
+//!
+//! ## Header Structure (10 bytes)
+//!
+//! - Byte 0: Packet type flags (version, timecode, storage, reply, query, push)
+//! - Byte 1: Sequence number (1-15, wraps around)
+//! - Byte 2: Pixel format configuration
+//! - Byte 3: Protocol ID
+//! - Bytes 4-7: Data offset (32-bit, big-endian)
+//! - Bytes 8-9: Data length (16-bit, big-endian)
+//! - Bytes 10-13: Optional timecode (32-bit, big-endian) if timecode flag is set
 
 pub mod packet_type;
 pub use packet_type::*;
 
 pub mod pixel_config;
-pub use pixel_config::{PixelConfig, PixelFormat};
+pub use pixel_config::{DataType, PixelConfig, PixelFormat};
 
 pub mod id;
 pub use id::ID;
@@ -14,15 +34,51 @@ pub mod message;
 pub mod timecode;
 use timecode::TimeCode;
 
+/// DDP packet header containing metadata and control flags.
+///
+/// The header is 10 bytes (or 14 with timecode) and contains all the information
+/// needed to interpret the packet payload.
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::protocol::{Header, PacketType, PixelConfig, ID, timecode::TimeCode};
+///
+/// let header = Header {
+///     packet_type: PacketType::default(),
+///     sequence_number: 1,
+///     pixel_config: PixelConfig::default(),
+///     id: ID::Default,
+///     offset: 0,
+///     length: 9,
+///     time_code: TimeCode(None),
+/// };
+///
+/// // Convert to bytes for transmission
+/// let bytes: [u8; 10] = header.into();
+/// ```
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Default)]
 pub struct Header {
+    /// Packet type flags (version, timecode, storage, reply, query, push)
     pub packet_type: PacketType,
+
+    /// Sequence number (1-15, wraps around to 1)
     pub sequence_number: u8,
+
+    /// Pixel format configuration (RGB, RGBW, etc.)
     pub pixel_config: PixelConfig,
+
+    /// Protocol message ID
     pub id: ID,
+
+    /// Byte offset into the display buffer
     pub offset: u32,
+
+    /// Length of data in this packet (in bytes)
     pub length: u16,
-    pub time_code: TimeCode, //technically supported, although untested and relies on user to handle
+
+    /// Optional timecode for synchronization (if timecode flag is set)
+    pub time_code: TimeCode,
 }
 
 impl Into<[u8; 10]> for Header {

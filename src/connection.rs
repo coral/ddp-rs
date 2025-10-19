@@ -1,3 +1,8 @@
+//! DDP connection handling for sending and receiving pixel data.
+//!
+//! This module provides the main [`DDPConnection`] type for communicating with
+//! DDP-compatible LED displays.
+
 use crate::error::DDPError;
 use crate::error::DDPError::CrossBeamError;
 use crate::packet::Packet;
@@ -5,18 +10,73 @@ use crate::protocol;
 use crossbeam::channel::{unbounded, Receiver, TryRecvError};
 use std::net::{SocketAddr, UdpSocket};
 
+/// Maximum pixel data size per DDP packet (480 pixels × 3 bytes RGB = 1440 bytes)
 const MAX_DATA_LENGTH: usize = 480 * 3;
 
-/// Represents a connection to a DDP display
+/// A connection to a DDP display device.
+///
+/// This is the main type for sending pixel data to LED strips and other DDP-compatible
+/// displays. It handles packet assembly, sequencing, and automatic chunking of large
+/// data arrays.
+///
+/// # Examples
+///
+/// ## Basic usage
+///
+/// ```no_run
+/// use ddp_rs::connection::DDPConnection;
+/// use ddp_rs::protocol::{PixelConfig, ID};
+/// use std::net::UdpSocket;
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let mut conn = DDPConnection::try_new(
+///     "192.168.1.40:4048",
+///     PixelConfig::default(),
+///     ID::Default,
+///     UdpSocket::bind("0.0.0.0:4048")?
+/// )?;
+///
+/// // Send RGB data for 3 pixels
+/// conn.write(&[
+///     255, 0, 0,    // Red
+///     0, 255, 0,    // Green
+///     0, 0, 255,    // Blue
+/// ])?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## Using offsets to update part of the strip
+///
+/// ```no_run
+/// # use ddp_rs::connection::DDPConnection;
+/// # use ddp_rs::protocol::{PixelConfig, ID};
+/// # use std::net::UdpSocket;
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// # let mut conn = DDPConnection::try_new(
+/// #     "192.168.1.40:4048",
+/// #     PixelConfig::default(),
+/// #     ID::Default,
+/// #     UdpSocket::bind("0.0.0.0:4048")?
+/// # )?;
+/// // Update pixels starting at byte offset 300 (pixel 100 in RGB)
+/// conn.write_offset(&[255, 128, 64], 300)?;
+/// # Ok(())
+/// # }
+/// ```
 #[derive(Debug)]
 pub struct DDPConnection {
+    /// Pixel format configuration (RGB, RGBW, etc.)
     pub pixel_config: protocol::PixelConfig,
+
+    /// Protocol ID for this connection
     pub id: protocol::ID,
 
     sequence_number: u8,
     socket: UdpSocket,
     addr: SocketAddr,
 
+    /// Receiver for packets coming from the display (responses)
     pub receiver_packet: Receiver<Packet>,
 
     // Since the buffer is hot path, we can reuse it to avoid allocations per packet
@@ -24,9 +84,33 @@ pub struct DDPConnection {
 }
 
 impl DDPConnection {
-    /// Writes pixel data to the display
+    /// Writes pixel data to the display starting at offset 0.
     ///
-    /// You send the data
+    /// Large data arrays are automatically split into multiple packets. Each packet
+    /// can contain up to 1440 bytes (480 RGB pixels).
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw pixel data bytes. For RGB, this should be groups of 3 bytes (R,G,B).
+    ///            For RGBW, groups of 4 bytes (R,G,B,W).
+    ///
+    /// # Returns
+    ///
+    /// The total number of bytes sent across all packets.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ddp_rs::connection::DDPConnection;
+    /// # use ddp_rs::protocol::{PixelConfig, ID};
+    /// # use std::net::UdpSocket;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let mut conn = DDPConnection::try_new("192.168.1.40:4048", PixelConfig::default(), ID::Default, UdpSocket::bind("0.0.0.0:4048")?)?;
+    /// // Set first 3 pixels to red, green, blue
+    /// conn.write(&[255, 0, 0, 0, 255, 0, 0, 0, 255])?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn write(&mut self, data: &[u8]) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
 
@@ -37,9 +121,29 @@ impl DDPConnection {
         self.slice_send(&mut h, data)
     }
 
-    /// Writes pixel data to the display with offset
+    /// Writes pixel data to the display starting at a specific byte offset.
     ///
-    /// You send the data with offset
+    /// This is useful for updating only a portion of your LED strip without
+    /// resending all the data.
+    ///
+    /// # Arguments
+    ///
+    /// * `data` - Raw pixel data bytes to send
+    /// * `offset` - Starting byte offset (not pixel offset). For RGB, offset 3 = pixel 1.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ddp_rs::connection::DDPConnection;
+    /// # use ddp_rs::protocol::{PixelConfig, ID};
+    /// # use std::net::UdpSocket;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let mut conn = DDPConnection::try_new("192.168.1.40:4048", PixelConfig::default(), ID::Default, UdpSocket::bind("0.0.0.0:4048")?)?;
+    /// // Update pixel 10 (offset = 10 * 3 = 30) to white
+    /// conn.write_offset(&[255, 255, 255], 30)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn write_offset(&mut self, data: &[u8], offset: u32) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
 
@@ -51,11 +155,29 @@ impl DDPConnection {
         self.slice_send(&mut h, data)
     }
 
-    /// Allows you to send JSON messages to display
-    /// This is useful for things like setting the brightness
-    /// or changing the display mode
+    /// Sends a JSON control message to the display.
     ///
-    /// You provide a Message (either typed or untyped) and it will be sent to the display
+    /// This is useful for things like setting brightness, changing display modes,
+    /// or querying configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `msg` - A [`protocol::message::Message`] (typed or untyped JSON)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use ddp_rs::connection::DDPConnection;
+    /// # use ddp_rs::protocol::{PixelConfig, ID, message::Message};
+    /// # use std::net::UdpSocket;
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let mut conn = DDPConnection::try_new("192.168.1.40:4048", PixelConfig::default(), ID::Default, UdpSocket::bind("0.0.0.0:4048")?)?;
+    /// // Send a control message
+    /// let json_value = serde_json::json!({"brightness": 128});
+    /// conn.write_message(Message::Parsed((ID::Control, json_value)))?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn write_message(&mut self, msg: protocol::message::Message) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
         h.packet_type.push(false);
@@ -107,6 +229,15 @@ impl DDPConnection {
         Ok(sent)
     }
 
+    /// Attempts to retrieve a packet from the display (non-blocking).
+    ///
+    /// Checks if any response packets have been received from the display.
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(Packet)` - A packet was available
+    /// * `Err(DDPError::NothingToReceive)` - No packets waiting
+    /// * `Err(DDPError::CrossBeamError)` - Channel error
     pub fn get_incoming(&self) -> Result<Packet, DDPError> {
         match self.receiver_packet.try_recv() {
             Ok(packet) => Ok(packet),
@@ -115,6 +246,37 @@ impl DDPConnection {
         }
     }
 
+    /// Creates a new DDP connection to a display.
+    ///
+    /// # Arguments
+    ///
+    /// * `addr` - The display address (IP:port). DDP standard port is 4048.
+    /// * `pixel_config` - Pixel format configuration (RGB, RGBW, etc.)
+    /// * `id` - Protocol ID to use for this connection
+    /// * `socket` - A bound UDP socket for sending/receiving data
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(DDPConnection)` - Connection created successfully
+    /// * `Err(DDPError)` - Failed to resolve address or create connection
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use ddp_rs::connection::DDPConnection;
+    /// use ddp_rs::protocol::{PixelConfig, ID};
+    /// use std::net::UdpSocket;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let conn = DDPConnection::try_new(
+    ///     "192.168.1.40:4048",
+    ///     PixelConfig::default(),
+    ///     ID::Default,
+    ///     UdpSocket::bind("0.0.0.0:4048")?
+    /// )?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn try_new<A>(
         addr: A,
         pixel_config: protocol::PixelConfig,
