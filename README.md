@@ -71,3 +71,8 @@ m8 just open a PR with some gucchimucchi code and I'll review it.
 
 - [coral](https://www.youtube.com/@coral1), main clown of this library
 - [paulwrath1223](https://github.com/paulwrath1223) coming in with a [hot potato PR](https://github.com/coral/ddp-rs/pull/1). Absolute legendary PR right there.
+
+
+## AI DISCLAIMER
+
+I initially wrote this by hand but used AI SLOP to SLOP IT UP for testing etc. Everything pre 2025 is A R T I S I N A L but now we're fully in slop city. **no warranties express or implied** etc etc. TBH mostly tests were slopped up.

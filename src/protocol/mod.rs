@@ -194,4 +194,110 @@ mod tests {
             assert_eq!(header.offset, 39381);
         }
     }
+
+    // Property-based tests
+    use proptest::prelude::*;
+
+    proptest! {
+        #[test]
+        fn test_header_10_byte_roundtrip(
+            packet_type_byte in any::<u8>(),
+            seq_num in any::<u8>(),
+            pixel_config in any::<u8>(),
+            id in any::<u8>(),
+            offset in any::<u32>(),
+            length in any::<u16>(),
+        ) {
+            // Create a 10-byte header from arbitrary values
+            let mut bytes = vec![packet_type_byte, seq_num, pixel_config, id];
+            bytes.extend_from_slice(&offset.to_be_bytes());
+            bytes.extend_from_slice(&length.to_be_bytes());
+
+            // Parse it
+            let header = Header::from(&bytes[..]);
+
+            // Convert back to bytes
+            let roundtrip_bytes: [u8; 10] = header.into();
+
+            // Verify the roundtrip
+            prop_assert_eq!(header.sequence_number, seq_num);
+            prop_assert_eq!(header.offset, offset);
+            prop_assert_eq!(header.length, length);
+
+            // The roundtrip should produce the same parsed values
+            let roundtrip_header = Header::from(&roundtrip_bytes[..]);
+            prop_assert_eq!(header.sequence_number, roundtrip_header.sequence_number);
+            prop_assert_eq!(header.offset, roundtrip_header.offset);
+            prop_assert_eq!(header.length, roundtrip_header.length);
+        }
+
+        #[test]
+        fn test_header_14_byte_with_timecode_roundtrip(
+            seq_num in any::<u8>(),
+            pixel_config in any::<u8>(),
+            id in any::<u8>(),
+            offset in any::<u32>(),
+            length in any::<u16>(),
+            timecode in any::<u32>(),
+        ) {
+            // Create a header with timecode bit set
+            let packet_type_byte = 0b01010000u8; // timecode bit set
+            let mut bytes = vec![packet_type_byte, seq_num, pixel_config, id];
+            bytes.extend_from_slice(&offset.to_be_bytes());
+            bytes.extend_from_slice(&length.to_be_bytes());
+            bytes.extend_from_slice(&timecode.to_be_bytes());
+
+            // Parse it
+            let header = Header::from(&bytes[..]);
+
+            // Verify timecode was parsed
+            prop_assert_eq!(header.time_code.0, Some(timecode));
+            prop_assert_eq!(header.sequence_number, seq_num);
+            prop_assert_eq!(header.offset, offset);
+            prop_assert_eq!(header.length, length);
+            prop_assert!(header.packet_type.timecode);
+
+            // Convert back to 14-byte format
+            let roundtrip_bytes: [u8; 14] = header.into();
+
+            // Parse again and verify
+            let roundtrip_header = Header::from(&roundtrip_bytes[..]);
+            prop_assert_eq!(header.time_code, roundtrip_header.time_code);
+            prop_assert_eq!(header.sequence_number, roundtrip_header.sequence_number);
+        }
+
+        #[test]
+        fn test_header_parsing_never_panics(
+            bytes in prop::collection::vec(any::<u8>(), 10..20)
+        ) {
+            // Parsing arbitrary bytes should never panic
+            let _ = Header::from(&bytes[..]);
+        }
+
+        #[test]
+        fn test_header_offset_range(
+            offset in 0u32..=0xFFFFFFFF,
+        ) {
+            let mut header = Header::default();
+            header.offset = offset;
+
+            let bytes: [u8; 10] = header.into();
+            let parsed = Header::from(&bytes[..]);
+
+            prop_assert_eq!(parsed.offset, offset);
+        }
+
+        #[test]
+        fn test_header_length_range(
+            length in 0u16..=1500,
+        ) {
+            let mut header = Header::default();
+            header.length = length;
+
+            let bytes: [u8; 10] = header.into();
+            let parsed = Header::from(&bytes[..]);
+
+            prop_assert_eq!(parsed.length, length);
+        }
+    }
 }

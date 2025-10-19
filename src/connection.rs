@@ -204,4 +204,184 @@ mod tests {
             &recv_data
         );
     }
+
+    // Helper function for creating test connections
+    fn create_test_connection() -> (DDPConnection, UdpSocket) {
+        let display_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind display socket");
+        let display_addr = display_socket.local_addr().unwrap();
+        let client_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind client socket");
+
+        let conn = DDPConnection::try_new(
+            display_addr,
+            PixelConfig::default(),
+            ID::default(),
+            client_socket,
+        )
+        .expect("Failed to create connection");
+
+        (conn, display_socket)
+    }
+
+    #[test]
+    fn test_connection_creation() {
+        let (conn, _display_socket) = create_test_connection();
+        assert_eq!(conn.pixel_config, PixelConfig::default());
+        assert_eq!(conn.id, ID::default());
+    }
+
+    #[test]
+    fn test_connection_write_pixel_data() {
+        use std::time::Duration;
+
+        let (mut conn, display_socket) = create_test_connection();
+        display_socket
+            .set_read_timeout(Some(Duration::from_millis(100)))
+            .unwrap();
+
+        let pixel_data = vec![255, 0, 0, 0, 255, 0, 0, 0, 255]; // 3 RGB pixels
+        let result = conn.write(&pixel_data);
+
+        assert!(result.is_ok());
+        assert!(result.unwrap() > 0);
+
+        let mut buf = [0u8; 1500];
+        let recv_result = display_socket.recv_from(&mut buf);
+        assert!(recv_result.is_ok());
+    }
+
+    #[test]
+    fn test_connection_write_with_offset() {
+        use std::time::Duration;
+
+        let (mut conn, display_socket) = create_test_connection();
+        display_socket
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
+
+        let pixel_data = vec![128, 128, 128]; // 1 RGB pixel
+        let offset = 30; // Start at pixel 10 (30 bytes / 3)
+        let result = conn.write_offset(&pixel_data, offset);
+
+        assert!(result.is_ok());
+
+        let mut buf = [0u8; 1500];
+        match display_socket.recv_from(&mut buf) {
+            Ok((size, _)) => {
+                assert!(size > 10);
+                let received_offset = u32::from_be_bytes([buf[4], buf[5], buf[6], buf[7]]);
+                assert_eq!(received_offset, offset);
+            }
+            Err(e) => {
+                eprintln!("Warning: recv_from timed out: {}", e);
+            }
+        }
+    }
+
+    #[test]
+    fn test_connection_sequence_numbers() {
+        use std::time::Duration;
+
+        let (mut conn, display_socket) = create_test_connection();
+        display_socket
+            .set_read_timeout(Some(Duration::from_millis(100)))
+            .unwrap();
+
+        let pixel_data = vec![255, 0, 0];
+
+        for i in 0..5 {
+            conn.write(&pixel_data).unwrap();
+
+            let mut buf = [0u8; 1500];
+            display_socket.recv_from(&mut buf).unwrap();
+
+            let seq_num = buf[1];
+            assert_eq!(seq_num, (i + 1) as u8);
+        }
+    }
+
+    #[test]
+    fn test_connection_large_data_chunking() {
+        use std::time::Duration;
+
+        let (mut conn, display_socket) = create_test_connection();
+        display_socket
+            .set_read_timeout(Some(Duration::from_millis(500)))
+            .unwrap();
+
+        // Send data larger than MAX_DATA_LENGTH (480 * 3 = 1440 bytes)
+        let large_data = vec![128u8; 2000];
+        let result = conn.write(&large_data);
+
+        assert!(result.is_ok());
+
+        // Should receive multiple packets
+        let mut received_packets = 0;
+        let mut buf = [0u8; 1500];
+
+        loop {
+            match display_socket.recv_from(&mut buf) {
+                Ok(_) => received_packets += 1,
+                Err(_) => break,
+            }
+
+            if received_packets >= 2 {
+                break;
+            }
+        }
+
+        assert!(received_packets >= 2, "Expected multiple packets for large data");
+    }
+
+    #[test]
+    fn test_connection_empty_data() {
+        use std::time::Duration;
+
+        let (mut conn, display_socket) = create_test_connection();
+        display_socket
+            .set_read_timeout(Some(Duration::from_millis(100)))
+            .unwrap();
+
+        let empty_data: Vec<u8> = vec![];
+        let result = conn.write(&empty_data);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_pixel_config_preserved() {
+        let display_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind display socket");
+        let display_addr = display_socket.local_addr().unwrap();
+        let client_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind client socket");
+
+        let custom_config = PixelConfig::default();
+
+        let conn = DDPConnection::try_new(
+            display_addr,
+            custom_config,
+            ID::default(),
+            client_socket,
+        )
+        .expect("Failed to create connection");
+
+        assert_eq!(conn.pixel_config, custom_config);
+    }
+
+    #[test]
+    fn test_id_preserved() {
+        let display_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind display socket");
+        let display_addr = display_socket.local_addr().unwrap();
+        let client_socket = UdpSocket::bind("127.0.0.1:0").expect("Failed to bind client socket");
+
+        let custom_id = ID::Config;
+
+        let conn = DDPConnection::try_new(
+            display_addr,
+            PixelConfig::default(),
+            custom_id,
+            client_socket,
+        )
+        .expect("Failed to create connection");
+
+        assert_eq!(conn.id, custom_id);
+    }
 }

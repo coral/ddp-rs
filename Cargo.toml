@@ -20,4 +20,5 @@ log = "0.4.17"
 
 [dev-dependencies]
 anyhow = "1.0.40"
-colorgrad = "0.6.2" 
+colorgrad = "0.6.2"
+proptest = "1.4" 
