@@ -7,10 +7,10 @@ use serde::{Deserialize, Serialize};
 ///
 /// - 0: Reserved
 /// - 1: Default (standard pixel data)
-/// - 2-246: Custom IDs for application-specific use
-/// - 249: Control messages
-/// - 250: Configuration messages
-/// - 251: Status messages
+/// - 2-245, 247-249: Custom IDs for application-specific use
+/// - 246: Control messages (JSON control read/write)
+/// - 250: Configuration messages (JSON config read/write)
+/// - 251: Status messages (JSON status read-only)
 /// - 254: DMX data
 /// - 255: Broadcast to all displays
 ///
@@ -37,16 +37,16 @@ pub enum ID {
     #[default]
     Default,
 
-    /// Custom ID in the range 2-246
+    /// Custom ID in ranges 2-245 and 247-249
     Custom(u8),
 
-    /// Control message ID (249)
+    /// Control message ID (246) for JSON control read/write
     Control,
 
-    /// Configuration message ID (250)
+    /// Configuration message ID (250) for JSON config read/write
     Config,
 
-    /// Status message ID (251)
+    /// Status message ID (251) for JSON status read-only
     Status,
 
     /// DMX data ID (254)
@@ -61,13 +61,13 @@ impl From<u8> for ID {
         match value {
             0 => ID::Reserved,
             1 => ID::Default,
-            2..=246 => ID::Custom(value),
-            249 => ID::Control,
+            246 => ID::Control,
             250 => ID::Config,
             251 => ID::Status,
             254 => ID::DMX,
             255 => ID::Broadcast,
-            _ => ID::Reserved,
+            // All other values are custom IDs (2-245, 247-249, 252-253)
+            _ => ID::Custom(value),
         }
     }
 }
@@ -77,13 +77,19 @@ impl Into<u8> for ID {
         match self {
             ID::Reserved => 0,
             ID::Default => 1,
-            ID::Custom(value) if (2..=246).contains(&value) => value,
-            ID::Control => 249,
+            ID::Control => 246,
             ID::Config => 250,
             ID::Status => 251,
             ID::DMX => 254,
             ID::Broadcast => 255,
-            ID::Custom(_) => 1,
+            ID::Custom(value) => {
+                // Valid custom ranges: 2-245, 247-249, 252-253
+                if matches!(value, 2..=245 | 247..=249 | 252..=253) {
+                    value
+                } else {
+                    1 // Default to ID 1 if invalid
+                }
+            }
         }
     }
 }
