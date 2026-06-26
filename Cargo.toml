@@ -35,3 +35,19 @@ log = { version = "0.4.17", default-features = false }
 anyhow = "1.0.40"
 colorgrad = "0.6.2"
 proptest = "1.4"
+criterion = "0.5"
+
+# Receive (parse) hot path: PacketRef (no_std, zero-copy) vs Packet (owned/alloc).
+[[bench]]
+name = "receive"
+harness = false
+
+# Send (frame-building) hot path: Header serialize + FrameBuilder chunking (no_std).
+[[bench]]
+name = "send"
+harness = false
+
+# Full std send path: framing + the UDP send_to syscall, over loopback.
+[[bench]]
+name = "connection"
+harness = false

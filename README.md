@@ -83,28 +83,6 @@ ddp-rs = { version = "1", default-features = false, features = ["embedded"] }
 | `no_std` + heap | `embedded` (alias for `alloc`) | owned `Packet { data: Vec<u8> }` + everything below |
 | Bare-metal | `--no-default-features` | `protocol::*`, zero-copy `PacketRef`, `FrameBuilder` — no allocator required |
 
-**Receiving** — parse a UDP datagram with no allocation, borrowing the payload:
-
-```rust
-use ddp_rs::packet::PacketRef;
-
-if let Some(pkt) = PacketRef::from_bytes(&datagram) {
-    // pkt.header.offset, pkt.header.length, pkt.data: &[u8] (raw RGB)
-    leds.write_at(pkt.header.offset as usize, pkt.data);
-}
-```
-
-**Sending** — `FrameBuilder` does the chunking + sequencing and hands you each ready-to-send
-frame; you do the actual transmit (so any UDP stack works):
-
-```rust
-use ddp_rs::protocol::{FrameBuilder, PixelConfig, ID};
-
-let mut builder = FrameBuilder::new(PixelConfig::default(), ID::Default);
-let mut scratch = [0u8; 1500];
-builder.for_each_frame(&rgb, 0, &mut scratch, |frame| socket.send(frame))?;
-```
-
 ## Why?
 
 I wish I could tell you. I've gone back and forth on these bespoke LED protocols and DDP seems like the most "sane" one although the "specification" leaves some to be desired. [TPM2.net](https://gist.github.com/jblang/89e24e2655be6c463c56) was another possible protocol which [i started to implement](https://github.com/coral/tpm2net) but stopped after I realized how bad it is. Artnet and E1.31 is great but then you have framerate problem (approx 40-44 FPS) to maintain backwards compatbility with DMX.
