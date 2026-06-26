@@ -107,11 +107,11 @@ impl From<u8> for PixelConfig {
     }
 }
 
-impl Into<u8> for PixelConfig {
-    fn into(self) -> u8 {
+impl From<PixelConfig> for u8 {
+    fn from(value: PixelConfig) -> Self {
         let mut byte = 0u8;
 
-        byte |= match self.data_type {
+        byte |= match value.data_type {
             DataType::Undefined => 0,
             DataType::RGB => 1,
             DataType::HSL => 2,
@@ -119,7 +119,7 @@ impl Into<u8> for PixelConfig {
             DataType::Grayscale => 4,
         } << 3;
 
-        byte |= match self.data_size {
+        byte |= match value.data_size {
             PixelFormat::Undefined => 0,
             PixelFormat::Pixel1Bits => 1,
             PixelFormat::Pixel4Bits => 2,
@@ -129,7 +129,7 @@ impl Into<u8> for PixelConfig {
             PixelFormat::Pixel32Bits => 6,
         };
 
-        if self.customer_defined {
+        if value.customer_defined {
             byte |= 0x80;
         }
 

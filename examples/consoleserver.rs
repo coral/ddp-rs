@@ -100,7 +100,7 @@ fn main() -> Result<()> {
     loop {
         // Receive a packet
         match socket.recv_from(&mut buf) {
-            Ok((size, src)) => {
+            Ok((size, _src)) => {
                 // Parse the DDP packet
                 let packet = Packet::from_bytes(&buf[..size]);
 

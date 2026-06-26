@@ -78,18 +78,10 @@ impl HeaderBuilder {
 }
 
 /// Builder for creating test Packets with sensible defaults
+#[derive(Default)]
 pub struct PacketBuilder {
     header: Header,
     data: Vec<u8>,
-}
-
-impl Default for PacketBuilder {
-    fn default() -> Self {
-        PacketBuilder {
-            header: Header::default(),
-            data: Vec::new(),
-        }
-    }
 }
 
 impl PacketBuilder {

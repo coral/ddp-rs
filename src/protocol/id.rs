@@ -72,9 +72,9 @@ impl From<u8> for ID {
     }
 }
 
-impl Into<u8> for ID {
-    fn into(self) -> u8 {
-        match self {
+impl From<ID> for u8 {
+    fn from(id: ID) -> Self {
+        match id {
             ID::Reserved => 0,
             ID::Default => 1,
             ID::Control => 246,

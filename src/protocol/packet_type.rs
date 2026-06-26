@@ -97,31 +97,31 @@ impl From<u8> for PacketType {
     }
 }
 
-impl Into<u8> for PacketType {
-    fn into(self) -> u8 {
+impl From<PacketType> for u8 {
+    fn from(value: PacketType) -> Self {
         let mut byte: u8 = 0;
-        let v = match self.version {
-            1 => self.version,
-            2 => self.version,
-            3 => self.version,
-            4 => self.version,
+        let v = match value.version {
+            1 => value.version,
+            2 => value.version,
+            3 => value.version,
+            4 => value.version,
             _ => 0,
         };
         byte |= v << 6;
         // Set the flag bits
-        if self.timecode {
+        if value.timecode {
             byte |= TIMECODE
         };
-        if self.storage {
+        if value.storage {
             byte |= STORAGE
         };
-        if self.reply {
+        if value.reply {
             byte |= REPLY
         };
-        if self.query {
+        if value.query {
             byte |= QUERY
         };
-        if self.push {
+        if value.push {
             byte |= PUSH
         };
 

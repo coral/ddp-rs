@@ -32,9 +32,9 @@ fn argen(length: u32) -> Result<Vec<u8>> {
 
     for i in 0..length {
         let color = g.at(i as f64 / length as f64).to_rgba8();
-        vec.push(color[0] as u8);
-        vec.push(color[1] as u8);
-        vec.push(color[2] as u8);
+        vec.push(color[0]);
+        vec.push(color[1]);
+        vec.push(color[2]);
     }
 
     Ok(vec)

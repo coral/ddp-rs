@@ -99,9 +99,9 @@ impl Message {
     }
 }
 
-impl Into<ID> for Message {
-    fn into(self) -> ID {
-        match self {
+impl From<Message> for ID {
+    fn from(message: Message) -> Self {
+        match message {
             Message::Control(_) => crate::protocol::ID::Control,
             Message::Status(_) => crate::protocol::ID::Status,
             Message::Config(_) => crate::protocol::ID::Config,

@@ -103,7 +103,7 @@ mod tests {
     #[test]
     fn test_timecode_clone() {
         let tc1 = TimeCode(Some(12345));
-        let tc2 = tc1.clone();
+        let tc2 = Clone::clone(&tc1);
         assert_eq!(tc1, tc2);
     }
 

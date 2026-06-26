@@ -92,7 +92,7 @@ impl DDPConnection {
     /// # Arguments
     ///
     /// * `data` - Raw pixel data bytes. For RGB, this should be groups of 3 bytes (R,G,B).
-    ///            For RGBW, groups of 4 bytes (R,G,B,W).
+    ///   For RGBW, groups of 4 bytes (R,G,B,W).
     ///
     /// # Returns
     ///
@@ -112,10 +112,11 @@ impl DDPConnection {
     /// # }
     /// ```
     pub fn write(&mut self, data: &[u8]) -> Result<usize, DDPError> {
-        let mut h = protocol::Header::default();
-
-        h.pixel_config = self.pixel_config;
-        h.id = self.id;
+        let h = protocol::Header {
+            pixel_config: self.pixel_config,
+            id: self.id,
+            ..Default::default()
+        };
 
         self.send_frames(h, data, 0)
     }
@@ -144,10 +145,11 @@ impl DDPConnection {
     /// # }
     /// ```
     pub fn write_offset(&mut self, data: &[u8], offset: u32) -> Result<usize, DDPError> {
-        let mut h = protocol::Header::default();
-
-        h.pixel_config = self.pixel_config;
-        h.id = self.id;
+        let h = protocol::Header {
+            pixel_config: self.pixel_config,
+            id: self.id,
+            ..Default::default()
+        };
 
         self.send_frames(h, data, offset)
     }
@@ -176,10 +178,13 @@ impl DDPConnection {
     /// # }
     /// ```
     pub fn write_message(&mut self, msg: protocol::message::Message) -> Result<usize, DDPError> {
-        let mut h = protocol::Header::default();
-        h.id = msg.get_id();
+        let id = msg.get_id();
         let msg_data: Vec<u8> = msg.try_into()?;
-        h.length = msg_data.len() as u16;
+        let h = protocol::Header {
+            id,
+            length: msg_data.len() as u16,
+            ..Default::default()
+        };
 
         self.send_frames(h, &msg_data, 0)
     }
@@ -293,7 +298,7 @@ mod tests {
     #[test]
     // Test sending to a loopback device
     fn test_conn() {
-        let data_to_send = &vec![255, 0, 0, 255, 0, 0, 255, 0, 0];
+        let data_to_send = &[255, 0, 0, 255, 0, 0, 255, 0, 0];
         let (s, r) = unbounded();
 
         thread::spawn(move || {
@@ -440,11 +445,8 @@ mod tests {
         let mut received_packets = 0;
         let mut buf = [0u8; 1500];
 
-        loop {
-            match display_socket.recv_from(&mut buf) {
-                Ok(_) => received_packets += 1,
-                Err(_) => break,
-            }
+        while display_socket.recv_from(&mut buf).is_ok() {
+            received_packets += 1;
 
             if received_packets >= 2 {
                 break;

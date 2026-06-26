@@ -163,7 +163,7 @@ mod tests {
         let data = vec![0xDE, 0xAD, 0xBE, 0xEF];
 
         let error = DDPError::UnknownClient {
-            from: addr.clone(),
+            from: addr,
             data: data.clone(),
         };
 

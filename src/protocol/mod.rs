@@ -85,65 +85,65 @@ pub struct Header {
     pub time_code: TimeCode,
 }
 
-impl Into<[u8; 10]> for Header {
-    fn into(self) -> [u8; 10] {
+impl From<Header> for [u8; 10] {
+    fn from(header: Header) -> Self {
         // Define a byte array with the size of the header
         let mut buffer: [u8; 10] = [0u8; 10];
 
         // Write the packet type field to the buffer
 
-        let packet_type_byte: u8 = self.packet_type.into();
+        let packet_type_byte: u8 = header.packet_type.into();
         buffer[0] = packet_type_byte;
 
         // Write the sequence number field to the buffer
-        buffer[1] = self.sequence_number;
+        buffer[1] = header.sequence_number;
 
         // Write the pixel config field to the buffer
-        buffer[2] = self.pixel_config.into();
+        buffer[2] = header.pixel_config.into();
 
         // Write the id field to the buffer
-        buffer[3] = self.id.into();
+        buffer[3] = header.id.into();
 
         // Write the offset field to the buffer
-        let offset_bytes = self.offset.to_be_bytes();
+        let offset_bytes = header.offset.to_be_bytes();
         buffer[4..8].copy_from_slice(&offset_bytes);
 
         // Write the length field to the buffer
-        let length_bytes = self.length.to_be_bytes();
+        let length_bytes = header.length.to_be_bytes();
         buffer[8..10].copy_from_slice(&length_bytes);
 
         // Return a slice of the buffer representing the entire header
         buffer
     }
 }
-impl Into<[u8; 14]> for Header {
-    fn into(self) -> [u8; 14] {
+impl From<Header> for [u8; 14] {
+    fn from(header: Header) -> Self {
         // Define a byte array with the size of the header
         let mut buffer = [0u8; 14];
 
         // Write the packet type field to the buffer
 
-        let packet_type_byte: u8 = self.packet_type.into();
+        let packet_type_byte: u8 = header.packet_type.into();
         buffer[0] = packet_type_byte;
 
         // Write the sequence number field to the buffer
-        buffer[1] = self.sequence_number;
+        buffer[1] = header.sequence_number;
 
         // Write the pixel config field to the buffer
-        buffer[2] = self.pixel_config.into();
+        buffer[2] = header.pixel_config.into();
 
         // Write the id field to the buffer
-        buffer[3] = self.id.into();
+        buffer[3] = header.id.into();
 
         // Write the offset field to the buffer
-        let offset_bytes: [u8; 4] = self.offset.to_be_bytes();
+        let offset_bytes: [u8; 4] = header.offset.to_be_bytes();
         buffer[4..8].copy_from_slice(&offset_bytes);
 
         // Write the length field to the buffer
-        let length_bytes: [u8; 2] = self.length.to_be_bytes();
+        let length_bytes: [u8; 2] = header.length.to_be_bytes();
         buffer[8..10].copy_from_slice(&length_bytes);
 
-        let time_code: [u8; 4] = self.time_code.to_bytes();
+        let time_code: [u8; 4] = header.time_code.to_bytes();
         buffer[10..14].copy_from_slice(&time_code);
 
         // Return a slice of the buffer representing the entire header
@@ -373,8 +373,10 @@ mod tests {
         fn test_header_offset_range(
             offset in 0u32..=0xFFFFFFFF,
         ) {
-            let mut header = Header::default();
-            header.offset = offset;
+            let header = Header {
+                offset,
+                ..Default::default()
+            };
 
             let bytes: [u8; 10] = header.into();
             let parsed = Header::from(&bytes[..]);
@@ -386,8 +388,10 @@ mod tests {
         fn test_header_length_range(
             length in 0u16..=1500,
         ) {
-            let mut header = Header::default();
-            header.length = length;
+            let header = Header {
+                length,
+                ..Default::default()
+            };
 
             let bytes: [u8; 10] = header.into();
             let parsed = Header::from(&bytes[..]);

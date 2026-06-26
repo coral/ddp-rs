@@ -78,9 +78,11 @@ impl FrameBuilder {
     where
         F: FnMut(&[u8]) -> Result<(), E>,
     {
-        let mut header = Header::default();
-        header.pixel_config = self.pixel_config;
-        header.id = self.id;
+        let header = Header {
+            pixel_config: self.pixel_config,
+            id: self.id,
+            ..Default::default()
+        };
         self.frames_with(header, data, offset, scratch, f)
     }
 
@@ -102,7 +104,7 @@ impl FrameBuilder {
         header.packet_type.push(false);
 
         let total = data.len();
-        let num_iterations = (total + MAX_DATA_LENGTH - 1) / MAX_DATA_LENGTH;
+        let num_iterations = total.div_ceil(MAX_DATA_LENGTH);
         let mut chunk_index = 0usize;
         let mut data_offset = 0usize;
 
