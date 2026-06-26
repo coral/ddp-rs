@@ -1,12 +1,19 @@
 //! Error types for DDP operations.
 //!
 //! This module defines all error types that can occur when working with DDP connections.
+//!
+//! [`DDPError`] is only available with the `std` feature: every variant wraps a std type
+//! (sockets, `serde_json`, the crossbeam channel). `no_std` builds construct frames and parse
+//! packets without it — [`crate::protocol::FrameBuilder`] and [`crate::packet::PacketRef`] are
+//! infallible / use `Option`.
 
+#[cfg(feature = "std")]
 use thiserror::Error;
 
 /// Errors that can occur during DDP operations.
 ///
 /// All errors implement the standard [`std::error::Error`] trait via `thiserror`.
+#[cfg(feature = "std")]
 #[derive(Error, Debug)]
 pub enum DDPError {
     /// Socket or network I/O error
@@ -43,7 +50,7 @@ pub enum DDPError {
     CrossBeamError(#[from] crossbeam::channel::TryRecvError),
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
     use std::net::{IpAddr, Ipv4Addr, SocketAddr};

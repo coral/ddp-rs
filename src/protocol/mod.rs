@@ -29,10 +29,14 @@ pub use pixel_config::{DataType, PixelConfig, PixelFormat};
 pub mod id;
 pub use id::ID;
 
+#[cfg(feature = "std")]
 pub mod message;
 
 pub mod timecode;
 use timecode::TimeCode;
+
+mod frame;
+pub use frame::{FrameBuilder, MAX_DATA_LENGTH};
 
 /// DDP packet header containing metadata and control flags.
 ///
@@ -189,6 +193,41 @@ impl<'a> From<&'a [u8]> for Header {
                 length,
                 time_code: TimeCode(None),
             }
+        }
+    }
+}
+
+impl Header {
+    /// Serializes this header into the start of `buf`, returning the number of bytes written
+    /// (10, or 14 when a timecode is present).
+    ///
+    /// This is the allocation-free, `no_std`-friendly equivalent of the `Into<[u8; 10]>` /
+    /// `Into<[u8; 14]>` conversions — useful when writing a packet directly into a reusable
+    /// transmit buffer.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `buf` is shorter than the required header length.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use ddp_rs::protocol::Header;
+    ///
+    /// let header = Header::default();
+    /// let mut buf = [0u8; 10];
+    /// let n = header.write_into(&mut buf);
+    /// assert_eq!(n, 10);
+    /// ```
+    pub fn write_into(&self, buf: &mut [u8]) -> usize {
+        if self.packet_type.timecode {
+            let bytes: [u8; 14] = (*self).into();
+            buf[..14].copy_from_slice(&bytes);
+            14
+        } else {
+            let bytes: [u8; 10] = (*self).into();
+            buf[..10].copy_from_slice(&bytes);
+            10
         }
     }
 }

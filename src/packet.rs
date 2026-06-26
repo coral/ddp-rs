@@ -3,7 +3,66 @@
 //! This module provides the [`Packet`] type for parsing incoming DDP packets,
 //! typically used when receiving responses from displays.
 
-use crate::protocol::{message::Message, Header};
+use crate::protocol::Header;
+#[cfg(feature = "std")]
+use crate::protocol::message::Message;
+#[cfg(all(feature = "alloc", not(feature = "std")))]
+use alloc::vec::Vec;
+
+/// A borrowed, zero-copy view of a received DDP packet.
+///
+/// This is the allocation-free receive path: it parses the header and borrows the payload
+/// directly from the input buffer, so it works on bare-metal `no_std` targets with no
+/// allocator. For an owned packet (and JSON message parsing), use [`Packet`] (requires the
+/// `std` feature).
+///
+/// # Examples
+///
+/// ```
+/// use ddp_rs::packet::PacketRef;
+///
+/// let bytes = [
+///     0x41, 0x01, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x03,
+///     0xFF, 0x00, 0x00, // 1 RGB pixel: red
+/// ];
+/// let packet = PacketRef::from_bytes(&bytes).unwrap();
+///
+/// assert_eq!(packet.header.sequence_number, 1);
+/// assert_eq!(packet.data, &[0xFF, 0x00, 0x00]);
+/// ```
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub struct PacketRef<'a> {
+    /// The parsed packet header with metadata.
+    pub header: Header,
+
+    /// The packet payload, borrowed from the input buffer.
+    pub data: &'a [u8],
+}
+
+impl<'a> PacketRef<'a> {
+    /// Parses a DDP packet, borrowing the payload from `bytes`.
+    ///
+    /// Handles both 10-byte and 14-byte (timecode) headers. Returns `None` if `bytes` is too
+    /// short to contain a complete header.
+    pub fn from_bytes(bytes: &'a [u8]) -> Option<Self> {
+        if bytes.len() < 10 {
+            return None;
+        }
+
+        // Check the timecode flag to learn the header size before parsing it.
+        let has_timecode = (bytes[0] & 0b00010000) != 0;
+        let header_size = if has_timecode { 14 } else { 10 };
+
+        if bytes.len() < header_size {
+            return None;
+        }
+
+        Some(PacketRef {
+            header: Header::from(&bytes[0..header_size]),
+            data: &bytes[header_size..],
+        })
+    }
+}
 
 /// A parsed DDP packet received from a display.
 ///
@@ -25,6 +84,7 @@ use crate::protocol::{message::Message, Header};
 /// assert_eq!(packet.header.sequence_number, 1);
 /// assert_eq!(packet.data, vec![0xFF, 0x00, 0x00]);
 /// ```
+#[cfg(feature = "alloc")]
 #[derive(Debug, PartialEq, Clone)]
 pub struct Packet {
     /// The parsed packet header with metadata
@@ -33,16 +93,21 @@ pub struct Packet {
     /// Raw pixel data (if this packet contains pixels)
     pub data: Vec<u8>,
 
-    /// Parsed JSON message (if this packet contains a message)
+    /// Parsed JSON message (if this packet contains a message).
+    ///
+    /// Only present with the `std` feature, since JSON parsing requires `serde_json`.
+    #[cfg(feature = "std")]
     pub parsed: Option<Message>,
 }
 
+#[cfg(feature = "alloc")]
 impl Packet {
     /// Creates a packet from a header and data slice (without parsing).
     pub fn from_data(h: Header, d: &[u8]) -> Packet {
         Packet {
             header: h,
             data: d.to_vec(),
+            #[cfg(feature = "std")]
             parsed: None,
         }
     }
@@ -76,81 +141,101 @@ impl Packet {
     /// assert_eq!(packet.data.len(), 6);
     /// ```
     pub fn from_bytes(bytes: &[u8]) -> Self {
-        // Ensure we have at least 10 bytes for the minimum header
-        if bytes.len() < 10 {
-            return Packet {
-                header: Header::default(),
-                data: Vec::new(),
-                parsed: None,
-            };
-        }
+        // Reuse the zero-copy parser for header + payload slicing.
+        let (header, data): (Header, &[u8]) = match PacketRef::from_bytes(bytes) {
+            Some(p) => (p.header, p.data),
+            // Too short for a complete header: return a default, empty packet.
+            None => (Header::default(), &[]),
+        };
 
-        // First, parse just enough to check if timecode is present
-        let has_timecode = (bytes[0] & 0b00010000) != 0;
-        let header_size = if has_timecode { 14 } else { 10 };
-
-        // Ensure we have enough bytes for the header
-        if bytes.len() < header_size {
-            return Packet {
-                header: Header::default(),
-                data: Vec::new(),
-                parsed: None,
-            };
-        }
-
-        let header_bytes = &bytes[0..header_size];
-        let header = Header::from(header_bytes);
-        let data = &bytes[header_size..];
-
-        let mut parsed: Option<Message> = None;
-
-        if header.packet_type.reply {
-            // Try to parse the data into typed structs in the spec
-            parsed = match match header.id {
-                crate::protocol::ID::Control => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Message::Control(v)),
-                    Err(_) => None,
-                },
-                crate::protocol::ID::Config => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Message::Config(v)),
-                    Err(_) => None,
-                },
-                crate::protocol::ID::Status => match serde_json::from_slice(data) {
-                    Ok(v) => Some(Message::Status(v)),
-                    Err(_) => None,
-                },
-                _ => None,
-            } {
-                // Worked, return the typed struct
-                Some(v) => Some(v),
-
-                // OK, no bueno, lets try just untyped JSON
-                None => match header.id {
-                    crate::protocol::ID::Control
-                    | crate::protocol::ID::Config
-                    | crate::protocol::ID::Status => match serde_json::from_slice(data) {
-                        // JSON Value it is
-                        Ok(v) => Some(Message::Parsed((header.id, v))),
-                        // Ok we're really screwed, lets just return the raw data as a string
-                        Err(_) => match std::str::from_utf8(data) {
-                            Ok(v) => Some(Message::Unparsed((header.id, v.to_string()))),
-                            // I guess it's... just bytes?
-                            Err(_) => None,
-                        },
-                    },
-                    _ => None,
-                },
-            }
-        }
         Packet {
             header,
             data: data.to_vec(),
-            parsed,
+            #[cfg(feature = "std")]
+            parsed: Self::parse_message(&header, data),
+        }
+    }
+
+    /// Attempts to parse the payload of a reply packet into a JSON [`Message`].
+    #[cfg(feature = "std")]
+    fn parse_message(header: &Header, data: &[u8]) -> Option<Message> {
+        if !header.packet_type.reply {
+            return None;
+        }
+
+        // Try to parse the data into typed structs in the spec
+        match match header.id {
+            crate::protocol::ID::Control => match serde_json::from_slice(data) {
+                Ok(v) => Some(Message::Control(v)),
+                Err(_) => None,
+            },
+            crate::protocol::ID::Config => match serde_json::from_slice(data) {
+                Ok(v) => Some(Message::Config(v)),
+                Err(_) => None,
+            },
+            crate::protocol::ID::Status => match serde_json::from_slice(data) {
+                Ok(v) => Some(Message::Status(v)),
+                Err(_) => None,
+            },
+            _ => None,
+        } {
+            // Worked, return the typed struct
+            Some(v) => Some(v),
+
+            // OK, no bueno, lets try just untyped JSON
+            None => match header.id {
+                crate::protocol::ID::Control
+                | crate::protocol::ID::Config
+                | crate::protocol::ID::Status => match serde_json::from_slice(data) {
+                    // JSON Value it is
+                    Ok(v) => Some(Message::Parsed((header.id, v))),
+                    // Ok we're really screwed, lets just return the raw data as a string
+                    Err(_) => match std::str::from_utf8(data) {
+                        Ok(v) => Some(Message::Unparsed((header.id, v.to_string()))),
+                        // I guess it's... just bytes?
+                        Err(_) => None,
+                    },
+                },
+                _ => None,
+            },
         }
     }
 }
 
 #[cfg(test)]
+mod packet_ref_tests {
+    use super::*;
+
+    #[test]
+    fn parses_header_and_borrows_data() {
+        let bytes = [
+            0x41, 0x01, 0x0D, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x06, 0xFF, 0x00, 0x00, 0x00,
+            0xFF, 0x00,
+        ];
+        let p = PacketRef::from_bytes(&bytes).unwrap();
+        assert_eq!(p.header.sequence_number, 1);
+        assert_eq!(p.header.length, 6);
+        assert_eq!(p.data, &[0xFF, 0x00, 0x00, 0x00, 0xFF, 0x00]);
+    }
+
+    #[test]
+    fn handles_timecode_header() {
+        // timecode bit set -> 14 byte header
+        let mut bytes = vec![0x51, 0x01, 0x0D, 0x01, 0, 0, 0, 0, 0, 3];
+        bytes.extend_from_slice(&[0x00, 0x00, 0x30, 0x39]); // timecode
+        bytes.extend_from_slice(&[0xAB, 0xCD, 0xEF]); // payload
+        let p = PacketRef::from_bytes(&bytes).unwrap();
+        assert_eq!(p.header.time_code.0, Some(12345));
+        assert_eq!(p.data, &[0xAB, 0xCD, 0xEF]);
+    }
+
+    #[test]
+    fn too_short_returns_none() {
+        assert!(PacketRef::from_bytes(&[0u8; 4]).is_none());
+    }
+}
+
+#[cfg(all(test, feature = "std"))]
 mod tests {
     use super::*;
 

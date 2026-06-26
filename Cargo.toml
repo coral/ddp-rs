@@ -10,15 +10,28 @@ repository = "https://github.com/coral/ddp-rs"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[features]
+# `std` (default) keeps the crate byte-for-byte identical for existing users:
+# the UDP `connection`, JSON `Message` support, and the full `DDPError` enum.
+default = ["std"]
+# Full standard-library build. Pulls in the socket connection, crossbeam channel,
+# serde_json message (de)serialization and the std-backed error type.
+std = ["alloc", "serde/std", "dep:serde_json", "dep:crossbeam", "dep:thiserror"]
+# `no_std` build with a heap allocator available (e.g. ESP32 / slisko-core).
+# Enables the owned `Packet { data: Vec<u8> }` receive type.
+alloc = ["serde/alloc"]
+# Convenience alias for "embedded with a heap" targets (ESP32-with-heap).
+# True bare-metal (Teensy 4.1, no allocator) uses `--no-default-features`.
+embedded = ["alloc"]
+
 [dependencies]
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "1.0.40"
-serde_json = "1.0"
-crossbeam = "0.8.2"
-dashmap = "5.4.0"
-log = "0.4.17"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+thiserror = { version = "1.0.40", optional = true }
+serde_json = { version = "1.0", optional = true }
+crossbeam = { version = "0.8.2", optional = true }
+log = { version = "0.4.17", default-features = false }
 
 [dev-dependencies]
 anyhow = "1.0.40"
 colorgrad = "0.6.2"
-proptest = "1.4" 
+proptest = "1.4"

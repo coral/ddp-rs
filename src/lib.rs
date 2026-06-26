@@ -34,16 +34,36 @@
 //!
 //! ## Modules
 //!
-//! - [`connection`] - Main connection type for sending pixel data
-//! - [`protocol`] - DDP protocol types and structures
+//! - [`connection`] - Main connection type for sending pixel data (requires `std`)
+//! - [`protocol`] - DDP protocol types and structures (always available, `no_std`)
 //! - [`packet`] - Packet parsing for receiving data from displays
 //! - [`error`] - Error types used throughout the crate
 //!
-//! 
+//! ## `no_std` / embedded use
+//!
+//! The crate is `no_std`-compatible. The default `std` feature gives the full library
+//! (UDP [`connection`], JSON messages, the full error type) and is unchanged from previous
+//! releases. For embedded targets:
+//!
+//! - `--no-default-features` — bare-metal core, **no allocator required**. Parse incoming
+//!   packets with [`packet::PacketRef`] and build outgoing frames with
+//!   [`protocol::FrameBuilder`], writing into your own buffers. Suitable for e.g. Teensy 4.1.
+//! - `--no-default-features --features alloc` (alias: `embedded`) — adds the owned
+//!   [`packet::Packet`] type for targets with a heap (e.g. ESP32).
+//!
+//! Socket I/O is the caller's responsibility in `no_std` builds.
+//!
+//!
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+
+#[cfg(feature = "std")]
 pub mod connection;
 pub mod error;
 pub mod packet;
 pub mod protocol;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "std"))]
 mod testing;

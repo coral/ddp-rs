@@ -7,11 +7,9 @@ use crate::error::DDPError;
 use crate::error::DDPError::CrossBeamError;
 use crate::packet::Packet;
 use crate::protocol;
+use crate::protocol::FrameBuilder;
 use crossbeam::channel::{unbounded, Receiver, TryRecvError};
 use std::net::{SocketAddr, UdpSocket};
-
-/// Maximum pixel data size per DDP packet (480 pixels × 3 bytes RGB = 1440 bytes)
-const MAX_DATA_LENGTH: usize = 480 * 3;
 
 /// A connection to a DDP display device.
 ///
@@ -72,7 +70,9 @@ pub struct DDPConnection {
     /// Protocol ID for this connection
     pub id: protocol::ID,
 
-    sequence_number: u8,
+    // Holds the rolling sequence number and the chunking/framing logic, shared with the
+    // transport-free `no_std` path.
+    frame_builder: FrameBuilder,
     socket: UdpSocket,
     addr: SocketAddr,
 
@@ -114,11 +114,10 @@ impl DDPConnection {
     pub fn write(&mut self, data: &[u8]) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
 
-        h.packet_type.push(false);
         h.pixel_config = self.pixel_config;
         h.id = self.id;
 
-        self.slice_send(&mut h, data)
+        self.send_frames(h, data, 0)
     }
 
     /// Writes pixel data to the display starting at a specific byte offset.
@@ -147,12 +146,10 @@ impl DDPConnection {
     pub fn write_offset(&mut self, data: &[u8], offset: u32) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
 
-        h.packet_type.push(false);
         h.pixel_config = self.pixel_config;
         h.id = self.id;
-        h.offset = offset;
 
-        self.slice_send(&mut h, data)
+        self.send_frames(h, data, offset)
     }
 
     /// Sends a JSON control message to the display.
@@ -180,51 +177,33 @@ impl DDPConnection {
     /// ```
     pub fn write_message(&mut self, msg: protocol::message::Message) -> Result<usize, DDPError> {
         let mut h = protocol::Header::default();
-        h.packet_type.push(false);
         h.id = msg.get_id();
         let msg_data: Vec<u8> = msg.try_into()?;
         h.length = msg_data.len() as u16;
 
-        self.slice_send(&mut h, &msg_data)
+        self.send_frames(h, &msg_data, 0)
     }
 
-    fn slice_send(
+    // Chunks `data` into DDP frames (via the shared, transport-free `FrameBuilder`) and sends
+    // each one over the socket. Returns the total number of bytes sent.
+    fn send_frames(
         &mut self,
-        header: &mut protocol::Header,
+        header: protocol::Header,
         data: &[u8],
+        offset: u32,
     ) -> Result<usize, DDPError> {
-        let mut offset = header.offset as usize;
-        let mut sent = 0;
+        let mut sent = 0usize;
+        // Disjoint field borrows so the frame builder, scratch buffer and socket can be used
+        // together inside the closure.
+        let socket = &self.socket;
+        let addr = self.addr;
+        let buffer = &mut self.buffer;
 
-        let num_iterations = (data.len() + MAX_DATA_LENGTH - 1) / MAX_DATA_LENGTH;
-        let mut iter = 0;
-
-        while offset < data.len() {
-            iter += 1;
-
-            if iter == num_iterations {
-                header.packet_type.push(true);
-            }
-
-            header.sequence_number = self.sequence_number;
-
-            let chunk_end = std::cmp::min(offset + MAX_DATA_LENGTH, data.len());
-            let chunk = &data[offset..chunk_end];
-            header.length = chunk.len() as u16;
-            let len = self.assemble_packet(*header, chunk);
-
-            // Send to socket
-            sent += self.socket.send_to(&self.buffer[0..len], self.addr)?;
-
-            // Increment sequence number
-            if self.sequence_number > 15 {
-                self.sequence_number = 1;
-            } else {
-                self.sequence_number += 1;
-            }
-            offset += MAX_DATA_LENGTH;
-            header.offset = offset as u32;
-        }
+        self.frame_builder
+            .frames_with(header, data, offset, buffer, |frame| {
+                sent += socket.send_to(frame, addr)?;
+                Ok::<(), DDPError>(())
+            })?;
 
         Ok(sent)
     }
@@ -298,28 +277,9 @@ impl DDPConnection {
             id,
             socket,
             receiver_packet: recv,
-            sequence_number: 1,
+            frame_builder: FrameBuilder::new(pixel_config, id),
             buffer: [0u8; 1500],
         })
-    }
-
-    // doing this to avoid allocations per frame
-    // micro optimization, but it's a hot path
-    // esp running this embedded
-    #[inline(always)]
-    fn assemble_packet(&mut self, header: protocol::Header, data: &[u8]) -> usize {
-        let header_bytes: usize = if header.packet_type.timecode {
-            let header_bytes: [u8; 14] = header.into();
-            self.buffer[0..14].copy_from_slice(&header_bytes);
-            14usize
-        } else {
-            let header_bytes: [u8; 10] = header.into();
-            self.buffer[0..10].copy_from_slice(&header_bytes);
-            10usize
-        };
-        self.buffer[header_bytes..(header_bytes + data.len())].copy_from_slice(data);
-
-        header_bytes + data.len()
     }
 }
 
